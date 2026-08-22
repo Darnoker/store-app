@@ -19,12 +19,19 @@
 
 	<properties>
 		<java.version>26</java.version>
+		<openapi-generator.version>7.22.0</openapi-generator.version>
+		<swagger-annotations.version>2.2.36</swagger-annotations.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.swagger.core.v3</groupId>
+			<artifactId>swagger-annotations-jakarta</artifactId>
+			<version>${swagger-annotations.version}</version>
 		</dependency>
 
 		<dependency>
@@ -36,6 +43,38 @@
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.openapitools</groupId>
+				<artifactId>openapi-generator-maven-plugin</artifactId>
+				<version>${openapi-generator.version}</version>
+				<executions>
+					<execution>
+						<id>generate-openapi-sources</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/main/resources/openapi/order-api.yaml</inputSpec>
+							<generatorName>spring</generatorName>
+							<output>${project.build.directory}/generated-sources/openapi</output>
+							<apiPackage>com.github.darnoker.orderservice.generated.api</apiPackage>
+							<modelPackage>com.github.darnoker.orderservice.generated.model</modelPackage>
+							<configOptions>
+								<interfaceOnly>false</interfaceOnly>
+								<delegatePattern>true</delegatePattern>
+								<useSpringBoot4>true</useSpringBoot4>
+								<useTags>true</useTags>
+								<useJakartaEe>true</useJakartaEe>
+								<generateApiTests>false</generateApiTests>
+								<generateModelTests>false</generateModelTests>
+								<generateSupportingFiles>false</generateSupportingFiles>
+								<hideGenerationTimestamp>true</hideGenerationTimestamp>
+							</configOptions>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>

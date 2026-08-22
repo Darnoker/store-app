@@ -2,17 +2,9 @@ package com.github.darnoker.orderservice.api;
 
 import com.github.darnoker.orderservice.generated.model.CreateOrderRequest;
 import com.github.darnoker.orderservice.generated.model.OrderDTO;
-import com.github.darnoker.orderservice.order.persistence.OrderRepository;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
 import java.net.URI;
@@ -25,25 +17,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-class OrderApiIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private JsonMapper objectMapper;
-
-    @Autowired
-    private OrderRepository orderRepository;
-
-    @BeforeEach
-    @AfterEach
-    void clearOrders() {
-        orderRepository.deleteAll();
-    }
+class OrderApiIntegrationTest extends BaseApiTest {
 
     @Test
     void createsAndReturnsOrder() throws Exception {
@@ -53,14 +27,14 @@ class OrderApiIntegrationTest {
                 .quantity(2)
                 .price(new BigDecimal("19.99"));
 
-        MvcResult result = mockMvc.perform(post("/orders")
+        MvcResult result = mvc.perform(post("/orders")
                         .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(jsonMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", containsString("/orders/")))
                 .andReturn();
 
-        OrderDTO createdOrder = objectMapper.readValue(result.getResponse().getContentAsString(), OrderDTO.class);
+        OrderDTO createdOrder = jsonMapper.readValue(result.getResponse().getContentAsString(), OrderDTO.class);
         assertEquals(request.getCustomerId(), createdOrder.getCustomerId());
         assertEquals(request.getProductId(), createdOrder.getProductId());
         assertEquals(request.getQuantity(), createdOrder.getQuantity());
@@ -71,11 +45,11 @@ class OrderApiIntegrationTest {
 
         String location = result.getResponse().getHeader("Location");
         assertNotNull(location);
-        MvcResult getResult = mockMvc.perform(get(URI.create(location)))
+        MvcResult getResult = mvc.perform(get(URI.create(location)))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        OrderDTO foundOrder = objectMapper.readValue(getResult.getResponse().getContentAsString(), OrderDTO.class);
+        OrderDTO foundOrder = jsonMapper.readValue(getResult.getResponse().getContentAsString(), OrderDTO.class);
         assertEquals(createdOrder, foundOrder);
     }
 }

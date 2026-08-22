@@ -6,9 +6,9 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class OrderApiMapper {
+class OrderApiMapper {
 
-    public static CreateOrder mapToCreateOrder(CreateOrderRequest request) {
+    static CreateOrder mapToCreateOrder(CreateOrderRequest request) {
         return new CreateOrder(request.getCustomerId(), request.getProductId(), request.getQuantity(), request.getPrice());
     }
 

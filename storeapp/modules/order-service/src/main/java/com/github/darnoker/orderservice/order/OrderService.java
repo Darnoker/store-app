@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,7 +24,8 @@ public class OrderService {
     @Transactional
     public Order createNewOrder(CreateOrder createOrder) {
         Order order = new Order(UUID.randomUUID(), createOrder.customerId(), createOrder.productId(),
-                createOrder.quantity(), createOrder.price(), OrderStatus.CREATED, Instant.now(clock));
+                createOrder.quantity(), createOrder.price(), OrderStatus.CREATED,
+                Instant.now(clock).truncatedTo(ChronoUnit.MICROS));
 
         orderRepository.save(OrderMapper.toEntity(order));
         return order;

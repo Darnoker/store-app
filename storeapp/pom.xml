@@ -60,6 +60,6 @@
 	</build>
 
 	<modules>
-		<module>modules/orderEntity-service</module>
+		<module>modules/order-service</module>
 	</modules>
 </project>

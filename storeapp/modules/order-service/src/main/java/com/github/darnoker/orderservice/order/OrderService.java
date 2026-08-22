@@ -2,6 +2,8 @@ package com.github.darnoker.orderservice.order;
 
 import com.github.darnoker.orderservice.order.model.CreateOrder;
 import com.github.darnoker.orderservice.order.model.Order;
+import com.github.darnoker.orderservice.order.persistence.OrderMapper;
+import com.github.darnoker.orderservice.order.persistence.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,13 +25,13 @@ public class OrderService {
         Order order = new Order(UUID.randomUUID(), createOrder.customerId(), createOrder.productId(),
                 createOrder.quantity(), createOrder.price(), OrderStatus.CREATED, Instant.now(clock));
 
-        orderRepository.save(OrderMapper.mapToOrderEntity(order));
+        orderRepository.save(OrderMapper.toEntity(order));
         return order;
     }
 
     @Transactional(readOnly = true)
     public Optional<Order> findById(UUID orderId) {
         return orderRepository.findById(orderId)
-                .map(OrderMapper::mapToOrder);
+                .map(OrderMapper::toDomain);
     }
 }

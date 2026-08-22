@@ -10,8 +10,8 @@
 		<version>0.0.1-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>orderEntity-service</artifactId>
-	<name>orderEntity-service</name>
+	<artifactId>order-service</artifactId>
+	<name>order-service</name>
 	<description>Order microservice</description>
 
 	<dependencies>
@@ -76,7 +76,7 @@
 							<goal>generate</goal>
 						</goals>
 						<configuration>
-							<inputSpec>${project.basedir}/src/main/resources/openapi/orderEntity-api.yaml</inputSpec>
+							<inputSpec>${project.basedir}/src/main/resources/openapi/order-api.yaml</inputSpec>
 							<generatorName>spring</generatorName>
 							<output>${project.build.directory}/generated-sources/openapi</output>
 							<apiPackage>com.github.darnoker.orderservice.generated.api</apiPackage>

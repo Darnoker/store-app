@@ -1,4 +1,4 @@
-package com.github.darnoker.orderservice.order;
+package com.github.darnoker.orderservice.order.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

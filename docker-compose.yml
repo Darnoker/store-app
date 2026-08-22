@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:18-alpine
     environment:
-      POSTGRES_DB: eventshop
+      POSTGRES_DB: order-service
       POSTGRES_USER: eventshop
       POSTGRES_PASSWORD: eventshop
     ports:
@@ -11,7 +11,7 @@ services:
       - postgres-data:/var/lib/postgresql
       - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/10-init-test-db.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eventshop -d eventshop"]
+      test: ["CMD-SHELL", "pg_isready -U eventshop -d order-service"]
       interval: 5s
       timeout: 5s
       retries: 10

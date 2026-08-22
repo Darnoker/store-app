@@ -1,0 +1,68 @@
+openapi: 3.0.3
+info:
+  title: Product Service API
+  version: 0.0.1
+paths:
+  /products/{productId}:
+    get:
+      tags: [ Products ]
+      operationId: getProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Product found, content: { application/json: { schema: { $ref: '#/components/schemas/ProductDTO' } } } }
+        '404': { description: Product not found }
+  /products:
+    post:
+      tags: [ Products ]
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProductRequest' }
+      responses:
+        '201': { description: Product created, content: { application/json: { schema: { $ref: '#/components/schemas/ProductDTO' } } } }
+        '400': { description: Invalid request }
+    get:
+      tags: [ Products ]
+      operationId: listProducts
+      parameters:
+        - name: type
+          in: query
+          schema: { $ref: '#/components/schemas/ProductType' }
+        - name: minPrice
+          in: query
+          schema: { type: number, format: decimal, minimum: 0 }
+        - name: maxPrice
+          in: query
+          schema: { type: number, format: decimal, minimum: 0 }
+      responses:
+        '200': { description: Products, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ProductDTO' } } } } }
+components:
+  schemas:
+    ProductType: { type: string, enum: [ BOOK, SWORD ] }
+    ProductDTO:
+      type: object
+      required: [ id, name, description, price, productType, details, createdAt, updatedAt ]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number, format: decimal }
+        productType: { $ref: '#/components/schemas/ProductType' }
+        details: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateProductRequest:
+      type: object
+      required: [ name, description, price, productType, details ]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: string, minLength: 1 }
+        price: { type: number, format: decimal, exclusiveMinimum: 0 }
+        productType: { $ref: '#/components/schemas/ProductType' }
+        details: { type: object, additionalProperties: true }

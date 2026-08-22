@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/eventshop}
+    username: ${DB_USERNAME:eventshop}
+    password: ${DB_PASSWORD:eventshop}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true

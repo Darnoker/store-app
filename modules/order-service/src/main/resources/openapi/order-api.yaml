@@ -1,0 +1,111 @@
+openapi: 3.0.3
+info:
+  title: Order Service API
+  description: API contract for the order service.
+  version: 0.0.1
+tags:
+  - name: Orders
+    description: Order operations
+paths:
+  /orders:
+    post:
+      tags:
+        - Orders
+      operationId: createOrder
+      summary: Create an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDTO'
+        '400':
+          description: Invalid request
+  /orders/{orderId}:
+    get:
+      tags:
+        - Orders
+      operationId: getOrder
+      summary: Get an order by ID
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Unique order identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Order found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDTO'
+        '404':
+          description: Order not found
+components:
+  schemas:
+    OrderDTO:
+      type: object
+      required:
+        - orderId
+        - customerId
+        - productId
+        - quantity
+        - price
+        - status
+        - createdAt
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        customerId:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          format: int32
+        price:
+          type: number
+          format: decimal
+        status:
+          type: string
+          example: CREATED
+        createdAt:
+          type: string
+          format: date-time
+    CreateOrderRequest:
+      type: object
+      required:
+        - customerId
+        - productId
+        - quantity
+        - price
+      properties:
+        customerId:
+          type: integer
+          format: int64
+          minimum: 1
+        productId:
+          type: integer
+          format: int64
+          minimum: 1
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          minimum: 0.01

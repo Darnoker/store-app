@@ -10,7 +10,7 @@ Storeapp is an e-commerce application built incrementally around microservices. 
 - Stack: Java 26, Spring Boot 4.1.1, Maven Wrapper.
 - Current module: `modules/order-service`.
 - `order-service` exposes `POST /orders` and `GET /orders/{orderId}`, persists orders in PostgreSQL with JPA, and versions the schema with Flyway.
-- Docker Compose runs PostgreSQL at `localhost:5432`; the default database is `eventshop` and the test database is `eventshop-test`.
+- Docker Compose runs PostgreSQL at `localhost:5432`; services use isolated `order-service` and `product-service` databases, with matching `-test` databases for integration tests.
 
 ## Spring Boot service conventions
 

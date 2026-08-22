@@ -23,5 +23,5 @@ When creating or extending a Spring Boot service, follow these conventions unles
 ## Build and test
 
 - Run the Maven Wrapper from the repository root: `./mvnw test` or a targeted module command such as `./mvnw -pl modules/<name>-service test`.
-- Integration tests expect a local PostgreSQL instance provided by `docker-compose.yml`; the test database is named `eventshop-test`.
+- Integration tests expect local PostgreSQL databases provided by `docker-compose.yml`; each service uses its matching `<service>-test` database.
 - After changing an OpenAPI contract, Maven compilation/tests must regenerate the generated sources.

@@ -77,5 +77,6 @@
 
 	<modules>
 		<module>modules/order-service</module>
+		<module>modules/product-service</module>
 	</modules>
 </project>

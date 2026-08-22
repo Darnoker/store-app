@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/order-service-test
+    url: jdbc:postgresql://localhost:5432/product-service-test
     username: eventshop
     password: eventshop
   jpa:

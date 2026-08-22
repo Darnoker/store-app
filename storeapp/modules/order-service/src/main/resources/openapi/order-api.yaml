@@ -7,6 +7,27 @@ tags:
   - name: Orders
     description: Order operations
 paths:
+  /orders:
+    post:
+      tags:
+        - Orders
+      operationId: createOrder
+      summary: Create an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDTO'
+        '400':
+          description: Invalid request
   /orders/{orderId}:
     get:
       tags:
@@ -27,20 +48,64 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Order'
+                $ref: '#/components/schemas/OrderDTO'
         '404':
           description: Order not found
 components:
   schemas:
-    Order:
+    OrderDTO:
       type: object
       required:
-        - id
+        - orderId
+        - customerId
+        - productId
+        - quantity
+        - price
         - status
+        - createdAt
       properties:
-        id:
+        orderId:
           type: string
           format: uuid
+        customerId:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          format: int32
+        price:
+          type: number
+          format: decimal
         status:
           type: string
           example: CREATED
+        createdAt:
+          type: string
+          format: date-time
+    CreateOrderRequest:
+      type: object
+      required:
+        - customerId
+        - productId
+        - quantity
+        - price
+      properties:
+        customerId:
+          type: integer
+          format: int64
+          minimum: 1
+        productId:
+          type: integer
+          format: int64
+          minimum: 1
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          minimum: 0.01

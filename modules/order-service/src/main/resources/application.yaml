@@ -11,3 +11,6 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+
+product-catalog:
+  base-url: ${PRODUCT_CATALOG_URL:http://localhost:8081}

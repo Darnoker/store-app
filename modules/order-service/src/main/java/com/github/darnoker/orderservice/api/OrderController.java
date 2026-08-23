@@ -2,7 +2,9 @@ package com.github.darnoker.orderservice.api;
 
 import com.github.darnoker.orderservice.generated.api.OrdersApi;
 import com.github.darnoker.orderservice.generated.model.CreateOrderRequest;
+import com.github.darnoker.orderservice.generated.model.CurrencyCode;
 import com.github.darnoker.orderservice.generated.model.OrderDTO;
+import com.github.darnoker.orderservice.generated.model.OrderItemDTO;
 import com.github.darnoker.orderservice.order.OrderService;
 import com.github.darnoker.orderservice.order.model.Order;
 import lombok.RequiredArgsConstructor;
@@ -43,10 +45,13 @@ public class OrderController implements OrdersApi {
         return new OrderDTO()
                 .orderId(order.id())
                 .customerId(order.customerId())
-                .productId(order.productId())
-                .quantity(order.quantity())
-                .price(order.price())
+                .items(order.items().stream().map(item -> new OrderItemDTO()
+                        .orderItemId(item.id()).productId(item.productId()).productType(item.productType()).productName(item.productName())
+                        .unitPrice(item.unitPrice()).quantity(item.quantity())).toList())
+                .totalAmount(order.totalAmount())
+                .currency(CurrencyCode.fromValue(order.currency().name()))
                 .status(order.status().name())
-                .createdAt(OffsetDateTime.ofInstant(order.createdAt(), ZoneOffset.UTC));
+                .createdAt(OffsetDateTime.ofInstant(order.createdAt(), ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.ofInstant(order.updatedAt(), ZoneOffset.UTC));
     }
 }

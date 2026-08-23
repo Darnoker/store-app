@@ -1,5 +1,10 @@
 package com.github.darnoker.orderservice.order;
 
 public enum OrderStatus {
-    CREATED
+    CREATED,
+    STOCK_RESERVED,
+    CONFIRMED,
+    PAID,
+    CANCELLED,
+    COMPLETED
 }

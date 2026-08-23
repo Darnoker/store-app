@@ -22,4 +22,18 @@ public interface ProductRepository extends JpaRepository<ProductEntity, UUID> {
             @Param("type") ProductType type,
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice);
+
+    @Query("""
+            SELECT product
+            FROM ProductEntity product
+            WHERE product.id IN :ids
+              AND (:type IS NULL OR product.productType = :type)
+              AND (:minPrice IS NULL OR product.price >= :minPrice)
+              AND (:maxPrice IS NULL OR product.price <= :maxPrice)
+            """)
+    List<ProductEntity> findAllByIdsAndFilters(
+            @Param("ids") List<UUID> ids,
+            @Param("type") ProductType type,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice);
 }

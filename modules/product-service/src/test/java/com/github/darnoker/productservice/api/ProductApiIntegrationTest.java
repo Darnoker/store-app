@@ -38,4 +38,20 @@ class ProductApiIntegrationTest extends BaseApiTest {
         mvc.perform(get("/products").queryParam("type", "SWORD")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].productType").value("SWORD"));
     }
+
+    @Test
+    void listsProductsFilteredByIds() throws Exception {
+        CreateProductRequest firstRequest = new CreateProductRequest().name("The Witcher").description("Fantasy book").price(new BigDecimal("49.99"))
+                .productType(ProductType.BOOK).details(Map.of("isbn", "978-83-0000-000-0", "pages", 320, "author", "Andrzej Sapkowski", "publisher", "Example Publisher", "language", "PL"));
+        CreateProductRequest secondRequest = new CreateProductRequest().name("Steel Longsword").description("Two handed sword").price(new BigDecimal("299.99"))
+                .productType(ProductType.SWORD).details(Map.of("damage", 42, "weight", 3.5, "length", 115.0, "material", "STEEL"));
+        ProductDTO first = jsonMapper.readValue(mvc.perform(post("/products").contentType("application/json").content(jsonMapper.writeValueAsString(firstRequest)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), ProductDTO.class);
+        ProductDTO second = jsonMapper.readValue(mvc.perform(post("/products").contentType("application/json").content(jsonMapper.writeValueAsString(secondRequest)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), ProductDTO.class);
+
+        mvc.perform(get("/products").queryParam("ids", first.getId().toString(), second.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
 }

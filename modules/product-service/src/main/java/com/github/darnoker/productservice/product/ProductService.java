@@ -36,12 +36,17 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public List<Product> findAll(ProductType type, BigDecimal minPrice, BigDecimal maxPrice) {
+    public List<Product> findAll(List<UUID> ids, ProductType type, BigDecimal minPrice, BigDecimal maxPrice) {
         if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
             throw new IllegalArgumentException("minPrice must not exceed maxPrice");
         }
+        if (ids != null && ids.isEmpty()) {
+            return List.of();
+        }
 
-        return productRepository.findAllByFilters(type, minPrice, maxPrice).stream()
+        return (ids == null
+                ? productRepository.findAllByFilters(type, minPrice, maxPrice)
+                : productRepository.findAllByIdsAndFilters(ids, type, minPrice, maxPrice)).stream()
                 .map(productMapper::toDomain)
                 .toList();
     }

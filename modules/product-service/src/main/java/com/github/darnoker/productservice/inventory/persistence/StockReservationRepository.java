@@ -8,4 +8,6 @@ import java.util.UUID;
 public interface StockReservationRepository extends JpaRepository<StockReservationEntity, UUID> {
 
     List<StockReservationEntity> findAllByOrderId(UUID orderId);
+
+    List<StockReservationEntity> findAllByOrderIdAndRequestId(UUID orderId, UUID requestId);
 }

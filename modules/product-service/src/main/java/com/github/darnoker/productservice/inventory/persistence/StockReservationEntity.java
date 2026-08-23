@@ -30,6 +30,9 @@ public class StockReservationEntity {
     @Column(name = "order_id", nullable = false)
     private UUID orderId;
 
+    @Column(name = "request_id", nullable = false)
+    private UUID requestId;
+
     @Column(nullable = false)
     private int quantity;
 

@@ -2,17 +2,16 @@ package com.github.darnoker.productservice.inventory;
 
 import com.github.darnoker.productservice.inventory.model.AdjustStockCommand;
 import com.github.darnoker.productservice.inventory.model.ConfirmReservationsCommand;
-import com.github.darnoker.productservice.inventory.model.ExpireReservationsCommand;
+import com.github.darnoker.productservice.inventory.model.Inventory;
+import com.github.darnoker.productservice.inventory.model.Quantity;
 import com.github.darnoker.productservice.inventory.model.ReleaseReservationsCommand;
 import com.github.darnoker.productservice.inventory.model.ReservationResult;
 import com.github.darnoker.productservice.inventory.model.ReserveStockCommand;
 import com.github.darnoker.productservice.inventory.model.ReservedItem;
-import com.github.darnoker.productservice.inventory.persistence.InventoryEntity;
+import com.github.darnoker.productservice.inventory.model.StockReservation;
 import com.github.darnoker.productservice.inventory.persistence.InventoryRepository;
-import com.github.darnoker.productservice.inventory.persistence.StockReservationEntity;
 import com.github.darnoker.productservice.inventory.persistence.StockReservationRepository;
-import com.github.darnoker.productservice.outbox.persistence.OutboxEventEntity;
-import com.github.darnoker.productservice.outbox.persistence.OutboxEventRepository;
+import com.github.darnoker.productservice.outbox.persistence.OutboxEventPublisher;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,13 +33,13 @@ public class InventoryService {
 
     private final StockReservationRepository stockReservationRepository;
 
-    private final OutboxEventRepository outboxEventRepository;
+    private final OutboxEventPublisher outboxEventPublisher;
 
     private final Clock clock;
 
     @Transactional
     public List<ReservationResult> reserveStock(ReserveStockCommand command) {
-        List<StockReservationEntity> existingReservations = stockReservationRepository
+        List<StockReservation> existingReservations = stockReservationRepository
                 .findAllByOrderIdAndRequestId(command.orderId(), command.requestId());
         if (!existingReservations.isEmpty()) {
             return existingReservations.stream()
@@ -48,37 +47,40 @@ public class InventoryService {
                     .toList();
         }
 
-        Map<UUID, Integer> productIdByQuantity = command.reservedItems().stream()
-                .collect(Collectors.toMap(ReservedItem::productId, ReservedItem::quantity, Integer::sum));
+        Map<UUID, Quantity> quantityByProductId = command.reservedItems().stream()
+                .collect(Collectors.toMap(ReservedItem::productId, ReservedItem::quantity, Quantity::add));
 
-        List<InventoryEntity> inventories = inventoryRepository.findAllByProductIdInForUpdate(productIdByQuantity.keySet());
-        if (inventories.size() != productIdByQuantity.size()) {
+        List<Inventory> inventories = inventoryRepository.findAllByProductIdInForUpdate(quantityByProductId.keySet());
+        if (inventories.size() != quantityByProductId.size()) {
             throw new IllegalArgumentException("Inventory does not exist for every requested product");
         }
         Instant now = Instant.now(clock);
-        for (InventoryEntity inventory : inventories) {
-            int requestedQuantity = productIdByQuantity.get(inventory.getProductId());
-            if (inventory.getQuantity() - inventory.getReservedQuantity() < requestedQuantity) {
-                throw new IllegalStateException("Insufficient stock for product " + inventory.getProductId());
+        for (Inventory inventory : inventories) {
+            Quantity requestedQuantity = quantityByProductId.get(inventory.productId());
+            if (inventory.quantity().subtract(inventory.reservedQuantity()).isLessThan(requestedQuantity)) {
+                throw new IllegalStateException("Insufficient stock for product " + inventory.productId());
             }
         }
-        inventories.forEach(inventory -> inventory.update(inventory.getQuantity(),
-                inventory.getReservedQuantity() + productIdByQuantity.get(inventory.getProductId()), now));
+        inventories = inventories.stream()
+                .map(inventory -> inventory.update(inventory.quantity(),
+                        inventory.reservedQuantity().add(quantityByProductId.get(inventory.productId())), now))
+                .toList();
+        inventoryRepository.saveAll(inventories);
 
         Instant expiresAt = now.plusSeconds(15 * 60L);
-        List<StockReservationEntity> reservations = inventories.stream()
-                .map(inventory -> new StockReservationEntity(
+        List<StockReservation> reservations = inventories.stream()
+                .map(inventory -> new StockReservation(
                         UUID.randomUUID(),
-                        inventory.getProductId(),
+                        inventory.productId(),
                         command.orderId(),
                         command.requestId(),
-                        productIdByQuantity.get(inventory.getProductId()),
+                        quantityByProductId.get(inventory.productId()),
                         StockReservationStatus.RESERVED,
                         expiresAt,
                         now))
                 .toList();
         stockReservationRepository.saveAll(reservations);
-        reservations.forEach(reservation -> publish(reservation.getOrderId(), InventoryEventType.STOCK_RESERVED, now));
+        reservations.forEach(reservation -> publish(reservation.orderId(), InventoryEventType.STOCK_RESERVED, now));
 
         return reservations.stream()
                 .map(this::toReservationResult)
@@ -96,7 +98,7 @@ public class InventoryService {
     }
 
     @Transactional
-    public void expireReservations(ExpireReservationsCommand command) {
+    public void expireReservations() {
         Instant now = Instant.now(clock);
         transitionReservations(
                 stockReservationRepository.findAllByStatusAndExpiresAtLessThanEqual(StockReservationStatus.RESERVED, now),
@@ -110,12 +112,12 @@ public class InventoryService {
             throw new InvalidStockAdjustmentException("Stock adjustment must not be zero");
         }
         Instant now = Instant.now(clock);
-        InventoryEntity inventory = findInventoryForUpdate(command.productId());
-        int adjustedQuantity = inventory.getQuantity() + command.quantityChange();
-        if (adjustedQuantity < inventory.getReservedQuantity()) {
+        Inventory inventory = findInventoryForUpdate(command.productId());
+        Quantity adjustedQuantity = inventory.quantity().add(command.quantityChange());
+        if (adjustedQuantity.isLessThan(inventory.reservedQuantity())) {
             throw new StockAdjustmentBelowReservedQuantityException();
         }
-        inventory.update(adjustedQuantity, inventory.getReservedQuantity(), now);
+        inventoryRepository.save(inventory.update(adjustedQuantity, inventory.reservedQuantity(), now));
         publish(command.productId(), InventoryEventType.STOCK_ADJUSTED, now);
     }
 
@@ -125,36 +127,45 @@ public class InventoryService {
                 now);
     }
 
-    private void transitionReservations(Collection<StockReservationEntity> reservations,
+    private void transitionReservations(Collection<StockReservation> reservations,
                                         StockReservationStatus targetStatus,
                                         Instant now) {
         if (reservations.isEmpty()) {
             return;
         }
 
-        Map<UUID, InventoryEntity> inventoriesByProductId = inventoryRepository.findAllByProductIdInForUpdate(
+        Map<UUID, Inventory> inventoriesByProductId = inventoryRepository.findAllByProductIdInForUpdate(
                         reservations.stream()
-                                .map(StockReservationEntity::getProductId)
+                                .map(StockReservation::productId)
                                 .collect(Collectors.toSet()))
                 .stream()
-                .collect(Collectors.toMap(InventoryEntity::getProductId, inventory -> inventory));
+                .collect(Collectors.toMap(Inventory::productId, inventory -> inventory));
 
-        for (StockReservationEntity reservation : reservations) {
-            InventoryEntity inventory = inventoriesByProductId.get(reservation.getProductId());
+        for (StockReservation reservation : reservations) {
+            Inventory inventory = inventoriesByProductId.get(reservation.productId());
             if (inventory == null) {
-                throw new IllegalArgumentException("Inventory does not exist for product " + reservation.getProductId());
+                throw new IllegalArgumentException("Inventory does not exist for product " + reservation.productId());
             }
             if (targetStatus == StockReservationStatus.CONFIRMED) {
-                inventory.update(inventory.getQuantity() - reservation.getQuantity(), inventory.getReservedQuantity() - reservation.getQuantity(), now);
+                inventoriesByProductId.put(inventory.productId(), inventory.update(
+                        inventory.quantity().subtract(reservation.quantity()),
+                        inventory.reservedQuantity().subtract(reservation.quantity()),
+                        now));
             } else {
-                inventory.update(inventory.getQuantity(), inventory.getReservedQuantity() - reservation.getQuantity(), now);
+                inventoriesByProductId.put(inventory.productId(), inventory.update(
+                        inventory.quantity(),
+                        inventory.reservedQuantity().subtract(reservation.quantity()),
+                        now));
             }
-            reservation.updateStatus(targetStatus);
-            publish(reservation.getOrderId(), eventTypeFor(targetStatus), now);
+            publish(reservation.orderId(), eventTypeFor(targetStatus), now);
         }
+        inventoryRepository.saveAll(inventoriesByProductId.values());
+        stockReservationRepository.saveAll(reservations.stream()
+                .map(reservation -> reservation.updateStatus(targetStatus))
+                .toList());
     }
 
-    private InventoryEntity findInventoryForUpdate(UUID productId) {
+    private Inventory findInventoryForUpdate(UUID productId) {
         return inventoryRepository.findByProductIdForUpdate(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Inventory does not exist for product " + productId));
     }
@@ -169,15 +180,15 @@ public class InventoryService {
     }
 
     private void publish(UUID aggregateId, InventoryEventType eventType, Instant now) {
-        outboxEventRepository.save(new OutboxEventEntity(UUID.randomUUID(), aggregateId, eventType.value(), "{}", now, false));
+        outboxEventPublisher.publish(aggregateId, eventType.value(), "{}", now);
     }
 
-    private ReservationResult toReservationResult(StockReservationEntity reservation) {
+    private ReservationResult toReservationResult(StockReservation reservation) {
         return new ReservationResult(
-                reservation.getProductId(),
-                reservation.getQuantity(),
-                reservation.getId(),
-                LocalDateTime.ofInstant(reservation.getExpiresAt(), clock.getZone()));
+                reservation.productId(),
+                reservation.quantity().value(),
+                reservation.id(),
+                LocalDateTime.ofInstant(reservation.expiresAt(), clock.getZone()));
     }
 
 }

@@ -1,19 +1,27 @@
 package com.github.darnoker.productservice.inventory.persistence;
 
 import com.github.darnoker.productservice.inventory.StockReservationStatus;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.github.darnoker.productservice.inventory.model.StockReservation;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
-public interface StockReservationRepository extends JpaRepository<StockReservationEntity, UUID> {
+public interface StockReservationRepository {
 
-    List<StockReservationEntity> findAllByOrderId(UUID orderId);
+    List<StockReservation> findAllByOrderId(UUID orderId);
 
-    List<StockReservationEntity> findAllByOrderIdAndRequestId(UUID orderId, UUID requestId);
+    List<StockReservation> findAllByOrderIdAndRequestId(UUID orderId, UUID requestId);
 
-    List<StockReservationEntity> findAllByOrderIdAndStatus(UUID orderId, StockReservationStatus status);
+    List<StockReservation> findAllByOrderIdAndStatus(UUID orderId, StockReservationStatus status);
 
-    List<StockReservationEntity> findAllByStatusAndExpiresAtLessThanEqual(StockReservationStatus status, Instant expiresAt);
+    List<StockReservation> findAllByStatusAndExpiresAtLessThanEqual(StockReservationStatus status, Instant expiresAt);
+
+    Optional<StockReservation> findById(UUID reservationId);
+
+    StockReservation save(StockReservation reservation);
+
+    List<StockReservation> saveAll(Collection<StockReservation> reservations);
 }

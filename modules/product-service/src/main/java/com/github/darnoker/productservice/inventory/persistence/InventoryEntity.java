@@ -16,24 +16,19 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class InventoryEntity {
+class InventoryEntity {
 
     @Id
     @Column(name = "product_id")
     private UUID productId;
 
     @Column(nullable = false)
-    private int quantity;
+    private Integer quantity;
 
     @Column(name = "reserved_quantity", nullable = false)
-    private int reservedQuantity;
+    private Integer reservedQuantity;
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    public void update(int quantity, int reservedQuantity, Instant updatedAt) {
-        this.quantity = quantity;
-        this.reservedQuantity = reservedQuantity;
-        this.updatedAt = updatedAt;
-    }
 }

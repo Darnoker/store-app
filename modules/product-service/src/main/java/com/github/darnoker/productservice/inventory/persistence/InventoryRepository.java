@@ -1,25 +1,21 @@
 package com.github.darnoker.productservice.inventory.persistence;
 
-import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.github.darnoker.productservice.inventory.model.Inventory;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface InventoryRepository extends JpaRepository<InventoryEntity, UUID> {
+public interface InventoryRepository {
 
-    Collection<InventoryEntity> findAllByProductIdIn(Collection<UUID> productIds);
+    List<Inventory> findAllByProductIdInForUpdate(Collection<UUID> productIds);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select inventory from InventoryEntity inventory where inventory.productId in :productIds order by inventory.productId")
-    List<InventoryEntity> findAllByProductIdInForUpdate(@Param("productIds") Collection<UUID> productIds);
+    Optional<Inventory> findByProductIdForUpdate(UUID productId);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select inventory from InventoryEntity inventory where inventory.productId = :productId")
-    Optional<InventoryEntity> findByProductIdForUpdate(@Param("productId") UUID productId);
+    Optional<Inventory> findById(UUID productId);
+
+    Inventory save(Inventory inventory);
+
+    List<Inventory> saveAll(Collection<Inventory> inventories);
 }

@@ -19,7 +19,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class StockReservationEntity {
+class StockReservationEntity {
 
     @Id
     private UUID id;
@@ -34,7 +34,7 @@ public class StockReservationEntity {
     private UUID requestId;
 
     @Column(nullable = false)
-    private int quantity;
+    private Integer quantity;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -46,7 +46,4 @@ public class StockReservationEntity {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    public void updateStatus(StockReservationStatus status) {
-        this.status = status;
-    }
 }

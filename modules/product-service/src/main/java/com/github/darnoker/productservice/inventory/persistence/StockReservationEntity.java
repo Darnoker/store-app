@@ -45,4 +45,8 @@ public class StockReservationEntity {
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    public void updateStatus(StockReservationStatus status) {
+        this.status = status;
+    }
 }

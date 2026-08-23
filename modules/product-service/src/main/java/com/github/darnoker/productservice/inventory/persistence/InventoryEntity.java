@@ -30,4 +30,10 @@ public class InventoryEntity {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    public void update(int quantity, int reservedQuantity, Instant updatedAt) {
+        this.quantity = quantity;
+        this.reservedQuantity = reservedQuantity;
+        this.updatedAt = updatedAt;
+    }
 }

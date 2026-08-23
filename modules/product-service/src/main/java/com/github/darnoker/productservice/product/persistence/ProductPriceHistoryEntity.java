@@ -17,7 +17,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductPriceHistoryEntity {
+class ProductPriceHistoryEntity {
 
     @Id
     private UUID id;

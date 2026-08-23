@@ -1,39 +1,19 @@
 package com.github.darnoker.productservice.product.persistence;
 
 import com.github.darnoker.productservice.product.ProductType;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import com.github.darnoker.productservice.product.model.Product;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-public interface ProductRepository extends JpaRepository<ProductEntity, UUID> {
+public interface ProductRepository {
 
-    @Query("""
-            SELECT product
-            FROM ProductEntity product
-            WHERE (:type IS NULL OR product.productType = :type)
-              AND (:minPrice IS NULL OR product.price >= :minPrice)
-              AND (:maxPrice IS NULL OR product.price <= :maxPrice)
-            """)
-    List<ProductEntity> findAllByFilters(
-            @Param("type") ProductType type,
-            @Param("minPrice") BigDecimal minPrice,
-            @Param("maxPrice") BigDecimal maxPrice);
+    Product save(Product product);
 
-    @Query("""
-            SELECT product
-            FROM ProductEntity product
-            WHERE product.id IN :ids
-              AND (:type IS NULL OR product.productType = :type)
-              AND (:minPrice IS NULL OR product.price >= :minPrice)
-              AND (:maxPrice IS NULL OR product.price <= :maxPrice)
-            """)
-    List<ProductEntity> findAllByIdsAndFilters(
-            @Param("ids") List<UUID> ids,
-            @Param("type") ProductType type,
-            @Param("minPrice") BigDecimal minPrice,
-            @Param("maxPrice") BigDecimal maxPrice);
+    java.util.Optional<Product> findById(UUID id);
+
+    List<Product> findAllByFilters(ProductType type, BigDecimal minPrice, BigDecimal maxPrice);
+
+    List<Product> findAllByIdsAndFilters(List<UUID> ids, ProductType type, BigDecimal minPrice, BigDecimal maxPrice);
 }

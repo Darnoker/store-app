@@ -5,11 +5,7 @@ import com.github.darnoker.orderservice.order.model.CreateOrder;
 import com.github.darnoker.orderservice.order.model.CreateOrderItem;
 import com.github.darnoker.orderservice.order.model.Order;
 import com.github.darnoker.orderservice.order.model.OrderItem;
-import com.github.darnoker.orderservice.order.persistence.OrderMapper;
 import com.github.darnoker.orderservice.order.persistence.OrderRepository;
-import com.github.darnoker.orderservice.order.persistence.OrderItemRepository;
-import com.github.darnoker.orderservice.order.persistence.OrderStatusHistoryRepository;
-import com.github.darnoker.orderservice.order.persistence.OrderStatusHistoryEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,8 +26,6 @@ import java.util.stream.Collectors;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
-    private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final ProductCatalog productCatalog;
     private final Clock clock;
 
@@ -55,18 +49,11 @@ public class OrderService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         Order order = new Order(UUID.randomUUID(), createOrder.customerId(), items, OrderStatus.CREATED, totalAmount, CurrencyCode.PLN, now, now);
 
-        orderRepository.save(OrderMapper.toEntity(order));
-        orderItemRepository.saveAll(items.stream()
-                .map(item -> OrderMapper.toItemEntity(order.id(), item))
-                .toList());
-        orderStatusHistoryRepository.save(new OrderStatusHistoryEntity(UUID.randomUUID(), order.id(), OrderStatus.CREATED, now));
-        return order;
+        return orderRepository.save(order);
     }
 
     @Transactional(readOnly = true)
     public Optional<Order> findById(UUID orderId) {
-        return orderRepository.findById(orderId)
-                .map(entity -> OrderMapper.toDomain(entity, orderItemRepository.findAllByOrderId(orderId).stream()
-                        .map(OrderMapper::toItemDomain).toList()));
+        return orderRepository.findById(orderId);
     }
 }

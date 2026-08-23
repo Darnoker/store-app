@@ -6,7 +6,7 @@ import com.github.darnoker.orderservice.order.model.OrderItem;
 import java.util.List;
 import java.util.UUID;
 
-public final class OrderMapper {
+final class OrderMapper {
 
     private OrderMapper() {
     }

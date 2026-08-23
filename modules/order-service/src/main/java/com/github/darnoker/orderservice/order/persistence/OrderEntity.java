@@ -23,7 +23,7 @@ import java.util.UUID;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class OrderEntity {
+class OrderEntity {
 
     @Id
     private UUID id;

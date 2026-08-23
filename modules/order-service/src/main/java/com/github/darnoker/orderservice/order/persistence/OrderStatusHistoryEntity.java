@@ -19,7 +19,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderStatusHistoryEntity {
+class OrderStatusHistoryEntity {
 
     @Id
     private UUID id;

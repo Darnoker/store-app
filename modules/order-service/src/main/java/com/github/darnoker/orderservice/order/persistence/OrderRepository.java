@@ -1,8 +1,10 @@
 package com.github.darnoker.orderservice.order.persistence;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-
+import com.github.darnoker.orderservice.order.model.Order;
+import java.util.Optional;
 import java.util.UUID;
 
-public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
+public interface OrderRepository {
+    Order save(Order order);
+    Optional<Order> findById(UUID orderId);
 }

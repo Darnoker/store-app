@@ -12,7 +12,8 @@ import com.github.darnoker.productservice.inventory.model.ReservedItem;
 import com.github.darnoker.productservice.inventory.persistence.InventoryRepository;
 import com.github.darnoker.productservice.inventory.persistence.StockReservationRepository;
 import com.github.darnoker.productservice.product.ProductType;
-import com.github.darnoker.productservice.product.persistence.ProductEntity;
+import com.github.darnoker.productservice.product.model.BookDetails;
+import com.github.darnoker.productservice.product.model.Product;
 import com.github.darnoker.productservice.product.persistence.ProductRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,13 +53,13 @@ class InventoryServiceIntegrationTest {
         UUID orderId = UUID.randomUUID();
         UUID requestId = UUID.randomUUID();
         Instant now = Instant.parse("2026-08-23T12:00:00Z");
-        productRepository.save(new ProductEntity(
+        productRepository.save(new Product(
                 productId,
                 "Test book",
                 "Product used by the inventory test",
                 new BigDecimal("10.00"),
                 ProductType.BOOK,
-                "{}",
+                new BookDetails("isbn", 100, "author", "publisher", "en"),
                 now,
                 now));
         inventoryRepository.save(new Inventory(productId, new Quantity(10), new Quantity(0), now));
@@ -141,8 +142,8 @@ class InventoryServiceIntegrationTest {
     private UUID createProductWithInventory(int quantity, int reservedQuantity) {
         UUID productId = UUID.randomUUID();
         Instant now = Instant.now();
-        productRepository.save(new ProductEntity(productId, "Test product", "Product used by the inventory test",
-                new BigDecimal("10.00"), ProductType.BOOK, "{}", now, now));
+        productRepository.save(new Product(productId, "Test product", "Product used by the inventory test",
+                new BigDecimal("10.00"), ProductType.BOOK, new BookDetails("isbn", 100, "author", "publisher", "en"), now, now));
         inventoryRepository.save(new Inventory(productId, new Quantity(quantity), new Quantity(reservedQuantity), now));
         return productId;
     }

@@ -16,7 +16,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderItemEntity {
+class OrderItemEntity {
 
     @Id
     private UUID id;

@@ -39,9 +39,9 @@ public class ProductController implements ProductsApi {
     }
 
     @Override
-    public ResponseEntity<List<ProductDTO>> listProducts(ProductType type, BigDecimal minPrice, BigDecimal maxPrice) {
+    public ResponseEntity<List<ProductDTO>> listProducts(List<UUID> ids, ProductType type, BigDecimal minPrice, BigDecimal maxPrice) {
         com.github.darnoker.productservice.product.ProductType domainType = type == null ? null : com.github.darnoker.productservice.product.ProductType.valueOf(type.getValue());
-        return ResponseEntity.ok(productService.findAll(domainType, minPrice, maxPrice).stream().map(this::toDto).toList());
+        return ResponseEntity.ok(productService.findAll(ids, domainType, minPrice, maxPrice).stream().map(this::toDto).toList());
     }
 
     private ResponseEntity<ProductDTO> created(Product product) {

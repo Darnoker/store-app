@@ -11,7 +11,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 @Component
 @RequiredArgsConstructor
-public class ProductDetailsJsonManager {
+class ProductDetailsJsonManager {
 
     private final JsonMapper jsonMapper;
 

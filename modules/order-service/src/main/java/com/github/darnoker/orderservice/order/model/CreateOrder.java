@@ -1,22 +1,16 @@
 package com.github.darnoker.orderservice.order.model;
 
-import java.math.BigDecimal;
+import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
-public record CreateOrder(Long customerId, Long productId, Integer quantity, BigDecimal price) {
+public record CreateOrder(UUID customerId, List<CreateOrderItem> items) {
 
     public CreateOrder {
-        requirePositive(customerId, "customerId");
-        requirePositive(productId, "productId");
-        requirePositive(quantity, "quantity");
-        if (Objects.requireNonNull(price, "price must not be null").signum() <= 0) {
-            throw new IllegalArgumentException("price must be positive");
-        }
-    }
-
-    private static void requirePositive(Number value, String name) {
-        if (Objects.requireNonNull(value, name + " must not be null").longValue() <= 0) {
-            throw new IllegalArgumentException(name + " must be positive");
+        customerId = Objects.requireNonNull(customerId, "customerId must not be null");
+        items = List.copyOf(Objects.requireNonNull(items, "items must not be null"));
+        if (items.isEmpty()) {
+            throw new IllegalArgumentException("items must not be empty");
         }
     }
 }

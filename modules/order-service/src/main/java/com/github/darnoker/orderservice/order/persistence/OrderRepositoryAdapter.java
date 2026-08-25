@@ -25,6 +25,9 @@ class OrderRepositoryAdapter implements OrderRepository {
 
     @Override
     public Optional<Order> findById(UUID orderId) {
-        return orderRepository.findById(orderId).map(entity -> OrderMapper.toDomain(entity, orderItemRepository.findAllByOrderId(orderId).stream().map(OrderMapper::toItemDomain).toList()));
+        return orderRepository.findById(orderId)
+                .map(entity -> OrderMapper.toDomain(entity, orderItemRepository.findAllByOrderId(orderId).stream()
+                        .map(OrderMapper::toItemDomain)
+                        .toList()));
     }
 }

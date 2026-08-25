@@ -87,10 +87,16 @@ class ProductJwtSecurityIntegrationTest extends BaseApiTest {
     }
 
     private static String token(RSAKey key, String issuer, List<String> audience, Instant expiresAt, String... roles) {
+        Instant issuedAt = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer(issuer).subject(UUID.randomUUID().toString()).audience(audience)
-                .issuedAt(Instant.now()).expiresAt(expiresAt)
-                .claim("user_id", UUID.randomUUID().toString()).claim("roles", List.of(roles)).build();
+                .issuer(issuer)
+                .subject(UUID.randomUUID().toString())
+                .audience(audience)
+                .issuedAt(issuedAt)
+                .expiresAt(expiresAt)
+                .claim("user_id", UUID.randomUUID().toString())
+                .claim("roles", List.of(roles))
+                .build();
         JwtEncoder encoder = new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(key)));
         return encoder.encode(JwtEncoderParameters.from(JwsHeader.with(SignatureAlgorithm.RS256).keyId(key.getKeyID()).build(), claims))
                 .getTokenValue();

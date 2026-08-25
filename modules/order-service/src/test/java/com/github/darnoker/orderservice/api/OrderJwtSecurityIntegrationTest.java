@@ -56,6 +56,7 @@ class OrderJwtSecurityIntegrationTest extends BaseApiTest {
         assertUnauthorized(token(rsaKey("other-key"), ISSUER, List.of(AUDIENCE), Instant.now().plusSeconds(60)));
         assertUnauthorized(token(SIGNING_KEY, "https://other-identity.test", List.of(AUDIENCE), Instant.now().plusSeconds(60)));
         assertUnauthorized(token(SIGNING_KEY, ISSUER, List.of("another-api"), Instant.now().plusSeconds(60)));
+
     }
 
     private void assertUnauthorized(String token) throws Exception {
@@ -64,11 +65,12 @@ class OrderJwtSecurityIntegrationTest extends BaseApiTest {
     }
 
     private static String token(RSAKey key, String issuer, List<String> audience, Instant expiresAt) {
+        Instant issuedAt = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(issuer)
                 .subject(UUID.randomUUID().toString())
                 .audience(audience)
-                .issuedAt(Instant.now())
+                .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
                 .claim("user_id", UUID.randomUUID().toString())
                 .claim("roles", List.of("USER"))

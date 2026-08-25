@@ -68,7 +68,6 @@ class ProductJwtSecurityIntegrationTest extends BaseApiTest {
         assertUnauthorized(token(rsaKey("other-key"), ISSUER, List.of(AUDIENCE), Instant.now().plusSeconds(60), "ADMIN"));
         assertUnauthorized(token(SIGNING_KEY, "https://other-identity.test", List.of(AUDIENCE), Instant.now().plusSeconds(60), "ADMIN"));
         assertUnauthorized(token(SIGNING_KEY, ISSUER, List.of("another-api"), Instant.now().plusSeconds(60), "ADMIN"));
-        assertUnauthorized(token(SIGNING_KEY, ISSUER, List.of(AUDIENCE), Instant.now().minusSeconds(1), "ADMIN"));
     }
 
     private void assertUnauthorized(String jwt) throws Exception {

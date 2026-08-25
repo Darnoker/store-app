@@ -2,6 +2,7 @@ package com.github.darnoker.productservice.api;
 
 import com.github.darnoker.productservice.generated.model.*;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.math.BigDecimal;
@@ -14,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@WithMockUser(roles = "ADMIN")
 class ProductApiIntegrationTest extends BaseApiTest {
 
     @Test

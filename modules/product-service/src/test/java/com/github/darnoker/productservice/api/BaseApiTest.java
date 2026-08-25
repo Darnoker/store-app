@@ -11,6 +11,11 @@ import tools.jackson.databind.json.JsonMapper;
 @SpringBootTest
 @ActiveProfiles("test")
 abstract class BaseApiTest {
-    @Autowired protected MockMvc mvc;
-    @Autowired protected JsonMapper jsonMapper;
+
+    @Autowired
+    protected MockMvc mvc;
+
+    @Autowired
+    protected JsonMapper jsonMapper;
+
 }

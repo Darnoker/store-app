@@ -8,6 +8,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,7 +30,7 @@ class SpringSecurityCurrentUserTest {
                 .claim("user_id", userId.toString())
                 .claim("roles", java.util.List.of("USER"))
                 .build();
-        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(jwt, null));
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(jwt, null, List.of()));
 
         AuthenticatedUser authenticatedUser = currentUser.currentUser().orElseThrow();
         assertEquals(userId, authenticatedUser.userId());
@@ -44,7 +45,7 @@ class SpringSecurityCurrentUserTest {
                 .header("alg", "RS256")
                 .claim("user_id", "not-a-uuid")
                 .build();
-        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(invalidUserId, null));
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(invalidUserId, null, List.of()));
 
         assertTrue(currentUser.currentUser().isEmpty());
     }

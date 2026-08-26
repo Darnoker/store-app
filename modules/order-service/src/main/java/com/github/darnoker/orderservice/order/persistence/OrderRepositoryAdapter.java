@@ -30,4 +30,12 @@ class OrderRepositoryAdapter implements OrderRepository {
                         .map(OrderMapper::toItemDomain)
                         .toList()));
     }
+
+    @Override
+    public java.util.List<Order> findByCustomerIdOrderByCreatedAtDesc(UUID customerId) {
+        return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
+                .map(entity -> OrderMapper.toDomain(entity, orderItemRepository.findAllByOrderId(entity.getId()).stream()
+                        .map(OrderMapper::toItemDomain).toList()))
+                .toList();
+    }
 }

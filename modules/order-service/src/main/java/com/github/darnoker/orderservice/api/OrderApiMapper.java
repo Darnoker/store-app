@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 class OrderApiMapper {
 
     static CreateOrder mapToCreateOrder(CreateOrderRequest request) {
-        return new CreateOrder(request.getCustomerId(), request.getItems().stream()
+        return new CreateOrder(request.getItems().stream()
                 .map(item -> new CreateOrderItem(item.getProductId(), item.getQuantity()))
                 .toList());
     }

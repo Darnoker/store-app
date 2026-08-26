@@ -30,7 +30,7 @@ public class OrderService {
     private final Clock clock;
 
     @Transactional
-    public Order createNewOrder(CreateOrder createOrder) {
+    public Order createNewOrder(UUID customerId, CreateOrder createOrder) {
         Instant now = Instant.now(clock).truncatedTo(ChronoUnit.MICROS);
         Map<UUID, ProductCatalog.ProductSnapshot> productsById = productCatalog.getProducts(
                         createOrder.items().stream()
@@ -47,7 +47,7 @@ public class OrderService {
         BigDecimal totalAmount = items.stream()
                 .map(OrderItem::subtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        Order order = new Order(UUID.randomUUID(), createOrder.customerId(), items, OrderStatus.CREATED, totalAmount, CurrencyCode.PLN, now, now);
+        Order order = new Order(UUID.randomUUID(), customerId, items, OrderStatus.CREATED, totalAmount, CurrencyCode.PLN, now, now);
 
         return orderRepository.save(order);
     }
@@ -55,5 +55,10 @@ public class OrderService {
     @Transactional(readOnly = true)
     public Optional<Order> findById(UUID orderId) {
         return orderRepository.findById(orderId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Order> findByCustomerId(UUID customerId) {
+        return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
     }
 }

@@ -14,3 +14,8 @@ spring:
 
 product-catalog:
   base-url: ${PRODUCT_CATALOG_URL:http://localhost:8081}
+
+user-service:
+  jwk-set-uri: ${USER_SERVICE_JWK_SET_URI:http://localhost:8082/oauth2/jwks}
+  issuer: ${USER_SERVICE_ISSUER:http://localhost:8082}
+  audience: ${USER_SERVICE_AUDIENCE:storeapp-api}

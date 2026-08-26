@@ -12,6 +12,9 @@ spring:
   flyway:
     enabled: true
 
+server:
+  port: ${SERVER_PORT:8083}
+
 product-catalog:
   base-url: ${PRODUCT_CATALOG_URL:http://localhost:8081}
 

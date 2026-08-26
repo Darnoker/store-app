@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+            - id: user-service
+              uri: ${gateway.user-service-url}
+              predicates:
+                - Path=/auth/**,/users/**,/oauth2/**
+            - id: product-service
+              uri: ${gateway.product-service-url}
+              predicates:
+                - Path=/products/**
+            - id: order-service
+              uri: ${gateway.order-service-url}
+              predicates:
+                - Path=/orders/**
+
+server:
+  port: ${SERVER_PORT:8080}
+
+gateway:
+  user-service-url: ${USER_SERVICE_URL:http://localhost:8082}
+  product-service-url: ${PRODUCT_SERVICE_URL:http://localhost:8081}
+  order-service-url: ${ORDER_SERVICE_URL:http://localhost:8083}
+
+user-service:
+  jwk-set-uri: ${USER_SERVICE_JWK_SET_URI:http://localhost:8082/oauth2/jwks}
+  issuer: ${USER_SERVICE_ISSUER:http://localhost:8082}
+  audience: ${USER_SERVICE_AUDIENCE:storeapp-api}

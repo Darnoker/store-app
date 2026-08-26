@@ -25,10 +25,18 @@
         <swagger-annotations.version>2.2.36</swagger-annotations.version>
         <jackson-databind-nullable.version>0.2.8</jackson-databind-nullable.version>
         <lombok.version>1.18.46</lombok.version>
+        <spring-cloud.version>2025.1.2</spring-cloud.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>io.swagger.core.v3</groupId>
                 <artifactId>swagger-annotations-jakarta</artifactId>
@@ -80,5 +88,6 @@
         <module>modules/order-service</module>
         <module>modules/product-service</module>
         <module>modules/user-service</module>
+        <module>modules/gateway-service</module>
     </modules>
 </project>

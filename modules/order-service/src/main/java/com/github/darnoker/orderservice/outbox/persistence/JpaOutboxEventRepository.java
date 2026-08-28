@@ -11,13 +11,13 @@ import java.util.UUID;
 
 interface JpaOutboxEventRepository extends JpaRepository<OutboxEventEntity, UUID> {
 
-    List<OutboxEventEntity> findAllByPublished(boolean published);
+    List<OutboxEventEntity> findAllByStatus(OutboxEventEntityStatus status);
 
     @Modifying
     @Query(nativeQuery = true,
             value = """
                     UPDATE outbox_events
-                    SET published = true
+                    SET status = 'PUBLISHED'
                     WHERE id in :ids
                     """
     )

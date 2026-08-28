@@ -10,6 +10,11 @@ public record OutboxEvent(
         String destination,
         String payload,
         Instant createdAt,
-        boolean published
+        OutboxEventStatus status,
+        int retryCount,
+        Instant nextAttemptAt,
+        UUID lockedBy,
+        Instant lockedUntil,
+        String lastError
 ) {
 }

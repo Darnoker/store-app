@@ -32,7 +32,9 @@ public class OutboxRelay {
                 .flatMap(Optional::stream)
                 .collect(Collectors.toSet());
 
-        repository.markAsPublished(publishedIds);
+        if (!publishedIds.isEmpty()) {
+            repository.markAsPublished(publishedIds);
+        }
     }
 
     private Optional<UUID> publish(OutboundMessage message) {

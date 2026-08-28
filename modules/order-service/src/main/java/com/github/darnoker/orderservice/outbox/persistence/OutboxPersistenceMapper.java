@@ -1,6 +1,7 @@
 package com.github.darnoker.orderservice.outbox.persistence;
 
 import com.github.darnoker.orderservice.outbox.model.OutboxEvent;
+import com.github.darnoker.orderservice.outbox.model.OutboxEventStatus;
 
 final class OutboxPersistenceMapper {
 
@@ -16,7 +17,12 @@ final class OutboxPersistenceMapper {
                 eventEntity.getDestination(),
                 eventEntity.getPayload(),
                 eventEntity.getCreatedAt(),
-                eventEntity.isPublished()
+                fromEntity(eventEntity.getStatus()),
+                eventEntity.getRetryCount(),
+                eventEntity.getNextAttemptAt(),
+                eventEntity.getLockedBy(),
+                eventEntity.getLockedUntil(),
+                eventEntity.getLastError()
         );
     }
 
@@ -28,7 +34,30 @@ final class OutboxPersistenceMapper {
                 event.destination(),
                 event.payload(),
                 event.createdAt(),
-                event.published()
+                fromDomain(event.status()),
+                event.retryCount(),
+                event.nextAttemptAt(),
+                event.lockedBy(),
+                event.lockedUntil(),
+                event.lastError()
         );
+    }
+
+    private static OutboxEventEntityStatus fromDomain(OutboxEventStatus entityStatus) {
+        return switch (entityStatus) {
+            case PENDING -> OutboxEventEntityStatus.PENDING;
+            case PROCESSING -> OutboxEventEntityStatus.PROCESSING;
+            case PUBLISHED -> OutboxEventEntityStatus.PUBLISHED;
+            case FAILED -> OutboxEventEntityStatus.FAILED;
+        };
+    }
+
+    private static OutboxEventStatus fromEntity(OutboxEventEntityStatus entityStatus) {
+        return switch (entityStatus) {
+            case PENDING -> OutboxEventStatus.PENDING;
+            case PROCESSING -> OutboxEventStatus.PROCESSING;
+            case PUBLISHED -> OutboxEventStatus.PUBLISHED;
+            case FAILED -> OutboxEventStatus.FAILED;
+        };
     }
 }

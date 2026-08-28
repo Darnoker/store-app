@@ -21,7 +21,7 @@ class OutboxRepositoryAdapter implements OutboxRepository {
 
     @Override
     public List<OutboxEvent> findPending() {
-        return repository.findAllByPublished(false).stream()
+        return repository.findAllByStatus(OutboxEventEntityStatus.PENDING).stream()
                 .map(OutboxPersistenceMapper::toDomain)
                 .toList();
     }

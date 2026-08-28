@@ -1,11 +1,14 @@
 package com.github.darnoker.orderservice.order;
 
 import com.github.darnoker.orderservice.catalog.ProductCatalog;
+import com.github.darnoker.orderservice.order.event.OrderCreated;
 import com.github.darnoker.orderservice.order.model.CreateOrder;
 import com.github.darnoker.orderservice.order.model.CreateOrderItem;
 import com.github.darnoker.orderservice.order.model.Order;
 import com.github.darnoker.orderservice.order.model.OrderItem;
 import com.github.darnoker.orderservice.order.persistence.OrderRepository;
+import com.github.darnoker.orderservice.outbox.EventType;
+import com.github.darnoker.orderservice.outbox.OutboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,8 +30,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrderService {
 
+    private static final String ORDER_TOPIC = "order-topic";
+
     private final OrderRepository orderRepository;
     private final ProductCatalog productCatalog;
+    private final OutboxService outboxService;
     private final Clock clock;
 
     @Transactional
@@ -53,8 +59,23 @@ public class OrderService {
         Order order = new Order(UUID.randomUUID(), customerId, items, OrderStatus.CREATED, totalAmount, CurrencyCode.PLN, now, now);
 
         Order savedOrder = orderRepository.save(order);
+        saveOrderCreatedEvent(customerId, savedOrder, items);
+
         log.info("Created order {} for customer {}", savedOrder.id(), customerId);
         return savedOrder;
+    }
+
+    private void saveOrderCreatedEvent(UUID customerId, Order savedOrder, List<OrderItem> items) {
+        outboxService.save(savedOrder.id(), ORDER_TOPIC, EventType.ORDER_CREATED, new OrderCreated(
+                        savedOrder.id(),
+                        customerId,
+                        CurrencyCode.PLN,
+                        Instant.now(clock),
+                        items.stream()
+                                .map(OrderItemMapper::toProductItem)
+                                .toList()
+                )
+        );
     }
 
     @Transactional(readOnly = true)
@@ -68,4 +89,5 @@ public class OrderService {
     public List<Order> findByCustomerId(UUID customerId) {
         return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
     }
+
 }

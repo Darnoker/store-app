@@ -18,7 +18,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class OutboxEventEntity {
+class OutboxEventEntity {
 
     @Id
     private UUID id;
@@ -28,6 +28,9 @@ public class OutboxEventEntity {
 
     @Column(name = "event_type", nullable = false)
     private String eventType;
+
+    @Column(name = "destination", nullable = false)
+    private String destination;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")

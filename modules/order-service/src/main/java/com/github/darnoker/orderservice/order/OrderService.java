@@ -7,6 +7,7 @@ import com.github.darnoker.orderservice.order.model.Order;
 import com.github.darnoker.orderservice.order.model.OrderItem;
 import com.github.darnoker.orderservice.order.persistence.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -31,6 +33,7 @@ public class OrderService {
 
     @Transactional
     public Order createNewOrder(UUID customerId, CreateOrder createOrder) {
+        log.info("Creating order for customer {} with {} item(s)", customerId, createOrder.items().size());
         Instant now = Instant.now(clock).truncatedTo(ChronoUnit.MICROS);
         Map<UUID, ProductCatalog.ProductSnapshot> productsById = productCatalog.getProducts(
                         createOrder.items().stream()
@@ -49,12 +52,16 @@ public class OrderService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         Order order = new Order(UUID.randomUUID(), customerId, items, OrderStatus.CREATED, totalAmount, CurrencyCode.PLN, now, now);
 
-        return orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
+        log.info("Created order {} for customer {}", savedOrder.id(), customerId);
+        return savedOrder;
     }
 
     @Transactional(readOnly = true)
     public Optional<Order> findById(UUID orderId) {
-        return orderRepository.findById(orderId);
+        Optional<Order> order = orderRepository.findById(orderId);
+        log.debug("Order {} {}", orderId, order.isPresent() ? "found" : "not found");
+        return order;
     }
 
     @Transactional(readOnly = true)

@@ -30,8 +30,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrderService {
 
-    private static final String ORDER_TOPIC = "order-topic";
-
     private final OrderRepository orderRepository;
     private final ProductCatalog productCatalog;
     private final OutboxService outboxService;
@@ -66,7 +64,7 @@ public class OrderService {
     }
 
     private void saveOrderCreatedEvent(UUID customerId, Order savedOrder, List<OrderItem> items) {
-        outboxService.save(savedOrder.id(), ORDER_TOPIC, EventType.ORDER_CREATED, new OrderCreated(
+        outboxService.save(savedOrder.id(), OrderTopics.ORDER_TOPIC, EventType.ORDER_CREATED, new OrderCreated(
                         savedOrder.id(),
                         customerId,
                         CurrencyCode.PLN,

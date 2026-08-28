@@ -7,6 +7,6 @@ public record OutboundMessage(UUID id,
                               String destination,
                               UUID aggregateId,
                               String eventType,
-                              Instant occuredAt,
+                              Instant occurredAt,
                               String payload) {
 }

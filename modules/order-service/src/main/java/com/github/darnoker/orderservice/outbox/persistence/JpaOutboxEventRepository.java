@@ -21,5 +21,5 @@ interface JpaOutboxEventRepository extends JpaRepository<OutboxEventEntity, UUID
                     WHERE id in :ids
                     """
     )
-    int markAsPublished(@Param("id") Collection<UUID> ids);
+    int markAsPublished(@Param("ids") Collection<UUID> ids);
 }

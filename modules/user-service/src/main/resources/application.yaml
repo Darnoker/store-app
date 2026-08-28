@@ -15,5 +15,5 @@ identity:
   audience: ${USER_SERVICE_AUDIENCE:storeapp-api}
   private-key-pem: ${USER_SERVICE_PRIVATE_KEY_PEM:}
 bootstrap-admin:
-  email: ${BOOTSTRAP_ADMIN_EMAIL:}
-  password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+  email: ${BOOTSTRAP_ADMIN_EMAIL:admin@storeapp.local}
+  password: ${BOOTSTRAP_ADMIN_PASSWORD:changeit-admin}

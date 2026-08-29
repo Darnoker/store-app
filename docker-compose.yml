@@ -15,10 +15,18 @@ services:
       kafka:
         condition: service_healthy
     restart: "no"
-    entrypoint: ["/bin/sh", "-c"]
-    command: >
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists
-      --topic order-topic --partitions 1 --replication-factor 1
+    entrypoint: ["/opt/kafka/bin/kafka-topics.sh"]
+    command:
+      - --bootstrap-server
+      - kafka:9092
+      - --create
+      - --if-not-exists
+      - --topic
+      - order-topic
+      - --partitions
+      - "1"
+      - --replication-factor
+      - "1"
 
   postgres:
     image: postgres:18-alpine

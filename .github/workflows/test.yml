@@ -25,7 +25,13 @@ jobs:
       - name: Start integration dependencies
         run: |
           docker compose up --detach --wait postgres kafka
-          docker compose run --rm kafka-init
+          docker compose exec --no-TTY kafka /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server localhost:9092 \
+            --create \
+            --if-not-exists \
+            --topic order-topic \
+            --partitions 1 \
+            --replication-factor 1
 
       - name: Run tests
         run: ./mvnw --batch-mode --no-transfer-progress test

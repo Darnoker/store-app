@@ -2,6 +2,8 @@ name: Test
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 permissions:
@@ -9,7 +11,16 @@ permissions:
 
 jobs:
   test:
+    name: Test ${{ matrix.service }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - gateway-service
+          - order-service
+          - product-service
+          - user-service
 
     steps:
       - name: Check out repository
@@ -34,4 +45,6 @@ jobs:
             --replication-factor 1
 
       - name: Run tests
-        run: ./mvnw --batch-mode --no-transfer-progress test
+        run: >
+          ./mvnw --batch-mode --no-transfer-progress
+          -pl modules/${{ matrix.service }} -am test

@@ -22,8 +22,10 @@ jobs:
           java-version: '26'
           cache: maven
 
-      - name: Start PostgreSQL
-        run: docker compose up --detach --wait postgres
+      - name: Start integration dependencies
+        run: |
+          docker compose up --detach --wait postgres kafka
+          docker compose run --rm kafka-init
 
       - name: Run tests
         run: ./mvnw --batch-mode --no-transfer-progress test

@@ -17,5 +17,7 @@ public interface OutboxRepository {
 
     List<OutboxEvent> claimBatch(int batchSize, UUID instanceId, Instant leaseUntil);
 
+    int renewLease(Collection<UUID> ids, UUID instanceId, Instant leaseUntil);
+
     void updateError(UUID id, UUID instanceId, int retries, Instant nextAttemptAt, String error);
 }

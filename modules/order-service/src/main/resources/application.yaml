@@ -34,3 +34,7 @@ outbox:
   relay:
     enabled: ${OUTBOX_RELAY_ENABLED:true}
     polling-interval-ms: ${OUTBOX_RELAY_POLLING_INTERVAL_MS:10000}
+    batch-size: ${OUTBOX_RELAY_BATCH_SIZE:100}
+    publish-timeout: ${OUTBOX_RELAY_PUBLISH_TIMEOUT:15s}
+    lease-duration: ${OUTBOX_RELAY_LEASE_DURATION:45s}
+    lease-renewal-interval: ${OUTBOX_RELAY_LEASE_RENEWAL_INTERVAL:10s}

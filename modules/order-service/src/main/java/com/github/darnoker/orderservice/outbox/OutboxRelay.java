@@ -2,6 +2,8 @@ package com.github.darnoker.orderservice.outbox;
 
 import com.github.darnoker.common.async.AsyncMessagePublisher;
 import com.github.darnoker.common.async.OutboundMessage;
+import com.github.darnoker.orderservice.outbox.lease.OutboxLeaseGuard;
+import com.github.darnoker.orderservice.outbox.lease.OutboxLeaseManager;
 import com.github.darnoker.orderservice.outbox.persistence.OutboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +14,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 @Component
@@ -29,7 +38,9 @@ public class OutboxRelay {
 
     private final TransactionTemplate transactionTemplate;
 
-    private final int batchSize = 100;
+    private final OutboxRelayProperties properties;
+
+    private final OutboxLeaseManager leaseManager;
 
     private static final UUID INSTANCE_ID = UUID.randomUUID();
 
@@ -38,42 +49,79 @@ public class OutboxRelay {
     @Scheduled(fixedDelayString = "${outbox.relay.polling-interval-ms:10000}")
     public void relay() {
         final List<OutboundMessage> claimedMessages = transactionTemplate.execute((_) ->
-                repository.claimBatch(batchSize, INSTANCE_ID, Instant.now(clock).plusSeconds(60)).stream()
+                repository.claimBatch(properties.batchSize(), INSTANCE_ID, Instant.now(clock).plus(properties.leaseDuration())).stream()
                         .map(OutboxMessageMapper::mapToOutboundMessage)
                         .toList());
 
-        final Set<UUID> publishedIds = claimedMessages.stream()
-                .map(this::publish)
-                .flatMap(Optional::stream)
+        if (claimedMessages.isEmpty()) {
+            return;
+        }
+
+        final Set<UUID> publishedIds = new HashSet<>();
+        final Set<UUID> claimedIds = claimedMessages.stream()
+                .map(OutboundMessage::id)
                 .collect(Collectors.toSet());
 
+        try (OutboxLeaseGuard leaseGuard = leaseManager.startClaimedBatch(claimedIds, INSTANCE_ID)) {
+            for (OutboundMessage message : claimedMessages) {
+                if (!leaseGuard.isHeld()) {
+                    log.warn("Stopping outbox relay because the lease for its current batch was lost");
+                    break;
+                }
+
+                if (publish(message)) {
+                    publishedIds.add(message.id());
+                } else {
+                    break;
+                }
+            }
+        }
+
         if (!publishedIds.isEmpty()) {
-            transactionTemplate.executeWithoutResult(_ -> repository.markAsPublished(publishedIds, INSTANCE_ID));
+            Integer markedAsPublished = transactionTemplate.execute(_ -> repository.markAsPublished(publishedIds, INSTANCE_ID));
+            if (markedAsPublished == null || markedAsPublished != publishedIds.size()) {
+                log.warn("Marked {} of {} outbox messages as published for instance {}",
+                        markedAsPublished, publishedIds.size(), INSTANCE_ID);
+            }
         }
     }
 
-    private Optional<UUID> publish(OutboundMessage message) {
+    private boolean publish(OutboundMessage message) {
+        CompletableFuture<Void> publication = null;
         try {
-            publisher.publish(message)
-                    .toCompletableFuture()
-                    .join();
+            publication = publisher.publish(message).toCompletableFuture();
+            publication.get(properties.publishTimeout().toMillis(), TimeUnit.MILLISECONDS);
 
-            return Optional.of(message.id());
-        } catch (Exception e) {
-            log.error("Failed to publish outbox message {}", message.id(), e);
-            transactionTemplate.executeWithoutResult(_ -> repository.updateError(
-                    message.id(),
-                    INSTANCE_ID,
-                    MAX_RETRIES,
-                    Instant.now(clock).plusSeconds(60),
-                    errorMessage(e)
-            ));
+            return true;
+        } catch (TimeoutException exception) {
+            publication.cancel(true);
+            log.error("Timed out publishing outbox message {} after {}", message.id(), properties.publishTimeout(), exception);
+            updateError(message, exception);
+        } catch (InterruptedException exception) {
+            updateError(message, exception);
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException | RuntimeException exception) {
+            log.error("Failed to publish outbox message {}", message.id(), exception);
+            updateError(message, exception);
         }
-        return Optional.empty();
+        return false;
+    }
+
+    private void updateError(OutboundMessage message, Exception exception) {
+        transactionTemplate.executeWithoutResult(_ -> repository.updateError(
+                message.id(),
+                INSTANCE_ID,
+                MAX_RETRIES,
+                Instant.now(clock).plusSeconds(60),
+                errorMessage(exception)
+        ));
     }
 
     private String errorMessage(Exception exception) {
-        String message = Optional.ofNullable(exception.getMessage()).orElse(exception.getClass().getName());
+        Throwable cause = exception instanceof ExecutionException && exception.getCause() != null
+                ? exception.getCause()
+                : exception;
+        String message = cause.getMessage() == null ? cause.getClass().getName() : cause.getMessage();
         return message.substring(0, Math.min(message.length(), 2000));
     }
 }

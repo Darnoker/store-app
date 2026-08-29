@@ -1,0 +1,4 @@
+outbox:
+  relay:
+    enabled: true
+    polling-interval-ms: 3600000

@@ -40,6 +40,11 @@ class OutboxRepositoryAdapter implements OutboxRepository {
     }
 
     @Override
+    public int renewLease(Collection<UUID> ids, UUID instanceId, Instant leaseUntil) {
+        return repository.renewLease(ids, instanceId, leaseUntil);
+    }
+
+    @Override
     public void updateError(UUID id, UUID instanceId, int retries, Instant nextAttemptAt, String error) {
         repository.updateError(id, instanceId, retries, nextAttemptAt, error);
     }

@@ -56,6 +56,20 @@ interface JpaOutboxEventRepository extends JpaRepository<OutboxEventEntity, UUID
 
     @Modifying
     @Query(nativeQuery = true, value = """
+            UPDATE outbox_events
+            SET locked_until = :leaseUntil
+            WHERE id IN (:ids)
+            AND status = 'PROCESSING'
+            AND locked_by = :instanceId
+            AND locked_until > NOW()
+            """)
+    int renewLease(
+            @Param("ids") Collection<UUID> ids,
+            @Param("instanceId") UUID instanceId,
+            @Param("leaseUntil") Instant leaseUntil);
+
+    @Modifying
+    @Query(nativeQuery = true, value = """
                         UPDATE outbox_events
                         SET retry_count = retry_count + 1,
                         status = CASE

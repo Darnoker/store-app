@@ -43,7 +43,7 @@ class OutboxEventEntity {
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
 
-    @Column(name = "next_attempt_at", nullable = false)
+    @Column(name = "next_attempt_at")
     private Instant nextAttemptAt;
 
     @Column(name = "locked_by")

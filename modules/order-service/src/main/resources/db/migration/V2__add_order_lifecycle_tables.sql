@@ -51,7 +51,7 @@ CREATE TABLE outbox_events (
     status VARCHAR(16) NOT NULL DEFAULT 'PENDING'
         CHECK (status IN ('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED')),
     retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
-    next_attempt_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    next_attempt_at TIMESTAMP WITH TIME ZONE,
     locked_by UUID,
     locked_until TIMESTAMP WITH TIME ZONE,
     last_error VARCHAR(2000)

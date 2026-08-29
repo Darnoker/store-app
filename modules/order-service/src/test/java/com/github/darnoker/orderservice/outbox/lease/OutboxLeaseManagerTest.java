@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,7 +36,8 @@ class OutboxLeaseManagerTest {
         ArgumentCaptor<Runnable> heartbeatCaptor = ArgumentCaptor.forClass(Runnable.class);
         Set<UUID> ids = Set.of(UUID.randomUUID(), UUID.randomUUID());
         UUID instanceId = UUID.randomUUID();
-        when(scheduler.scheduleAtFixedRate(heartbeatCaptor.capture(), eq(Duration.ofSeconds(10)))).thenReturn(heartbeat);
+        doReturn(heartbeat).when(scheduler)
+                .scheduleAtFixedRate(heartbeatCaptor.capture(), eq(Duration.ofSeconds(10)));
         when(repository.renewLease(eq(ids), eq(instanceId), any())).thenReturn(ids.size());
 
         OutboxLeaseManager manager = manager(repository, scheduler, transactionTemplate);
@@ -57,7 +59,8 @@ class OutboxLeaseManagerTest {
         ArgumentCaptor<Runnable> heartbeatCaptor = ArgumentCaptor.forClass(Runnable.class);
         Set<UUID> ids = Set.of(UUID.randomUUID(), UUID.randomUUID());
         UUID instanceId = UUID.randomUUID();
-        when(scheduler.scheduleAtFixedRate(heartbeatCaptor.capture(), eq(Duration.ofSeconds(10)))).thenReturn(heartbeat);
+        doReturn(heartbeat).when(scheduler)
+                .scheduleAtFixedRate(heartbeatCaptor.capture(), eq(Duration.ofSeconds(10)));
         when(repository.renewLease(eq(ids), eq(instanceId), any())).thenReturn(1);
 
         OutboxLeaseGuard guard = manager(repository, scheduler, transactionTemplate).startClaimedBatch(ids, instanceId);

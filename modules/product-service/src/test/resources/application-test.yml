@@ -9,3 +9,10 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  kafka:
+    listener:
+      auto-startup: false
+
+outbox:
+  relay:
+    enabled: false

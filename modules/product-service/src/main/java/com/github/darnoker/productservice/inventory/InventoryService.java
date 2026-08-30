@@ -93,12 +93,13 @@ public class InventoryService {
                         now))
                 .toList();
         stockReservationRepository.saveAll(reservations);
-        reservations.forEach(reservation -> publish(reservation.orderId(), InventoryEventType.STOCK_RESERVED, now));
         log.info("Reserved stock for order {}", command.orderId());
 
-        return reservations.stream()
+        List<ReservationResult> results = reservations.stream()
                 .map(this::toReservationResult)
                 .toList();
+        publishReservationSuccess(command.orderId(), results, now);
+        return results;
     }
 
     @Transactional
@@ -196,7 +197,7 @@ public class InventoryService {
     }
 
     private void publish(UUID aggregateId, InventoryEventType eventType, Instant now) {
-        outboxEventPublisher.publish(aggregateId, eventType.value(), "{}", now);
+        outboxEventPublisher.publish(aggregateId, eventType.getValue(), "{}", now);
     }
 
     private List<ReservedItem> missingItems(ReserveStockCommand command, List<Inventory> inventories) {
@@ -210,12 +211,17 @@ public class InventoryService {
                                            String reason,
                                            List<ReservedItem> failedItems,
                                            Instant createdAt) {
-        outboxEventPublisher.publish(command.orderId(), InventoryEventType.STOCK_RESERVATION_FAILED.value(),
+        outboxEventPublisher.publish(command.orderId(), InventoryEventType.STOCK_RESERVATION_FAILED.getValue(),
                 objectMapper.writeValueAsString(new StockReservationFailedEvent(command.orderId(), reason,
                         failedItems.stream()
                                 .map(item -> new FailedReservationItem(item.productId(), item.quantity().value()))
                                 .toList())),
                 createdAt);
+    }
+
+    private void publishReservationSuccess(UUID orderId, List<ReservationResult> reservations, Instant createdAt) {
+        outboxEventPublisher.publish(orderId, InventoryEventType.STOCK_RESERVED.getValue(),
+                objectMapper.writeValueAsString(new StockReservedEvent(orderId, reservations)), createdAt);
     }
 
     private ReservationResult toReservationResult(StockReservation reservation) {

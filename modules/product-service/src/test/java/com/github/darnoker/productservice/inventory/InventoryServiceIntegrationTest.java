@@ -93,6 +93,7 @@ class InventoryServiceIntegrationTest {
         assertEquals(3, reservation.quantity().value());
         assertEquals(StockReservationStatus.RESERVED, reservation.status());
         assertEquals(firstResult.getFirst().reservationId(), reservation.id());
+        assertSingleReservationSuccess(orderId, firstResult);
     }
 
     @Test
@@ -199,5 +200,20 @@ class InventoryServiceIntegrationTest {
         assertEquals("{\"orderId\":\"%s\",\"reason\":\"%s\",\"items\":[{\"productId\":\"%s\",\"quantity\":%s}]}"
                         .formatted(orderId, reason, productId, quantity),
                 event.get("payload"));
+    }
+
+    private void assertSingleReservationSuccess(UUID orderId, List<ReservationResult> reservations) {
+        List<Map<String, Object>> events = jdbcTemplate.queryForList("""
+                SELECT event_type, payload::text AS payload
+                FROM outbox_events
+                WHERE aggregate_id = ?
+                """, orderId);
+
+        assertEquals(1, events.size());
+        assertEquals("stock.reserved", events.getFirst().get("event_type"));
+        assertEquals("{\"orderId\":\"%s\",\"reservations\":[{\"productId\":\"%s\",\"quantity\":%s,\"reservationId\":\"%s\",\"expiresAt\":\"%s\"}]}"
+                        .formatted(orderId, reservations.getFirst().productId(), reservations.getFirst().quantity(),
+                                reservations.getFirst().reservationId(), reservations.getFirst().expiresAt()),
+                events.getFirst().get("payload"));
     }
 }

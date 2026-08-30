@@ -24,6 +24,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.awaitility.Awaitility.await;
 
 @SpringBootTest
 @ActiveProfiles({"test", "outbox-relay-test"})
@@ -64,7 +65,8 @@ class OutboxRelayIntegrationTest {
             consumer.poll(Duration.ofMillis(100));
             outboxRelay.relay();
 
-            assertTrue(receivesEvent(consumer, eventId, orderId));
+            await().atMost(Duration.ofSeconds(10))
+                    .untilAsserted(() -> assertTrue(receivesEvent(consumer, eventId, orderId)));
         }
         assertEquals("PUBLISHED", jdbcTemplate.queryForObject(
                 "SELECT status FROM outbox_events WHERE id = ?", String.class, eventId));
@@ -82,12 +84,9 @@ class OutboxRelayIntegrationTest {
     }
 
     private boolean receivesEvent(KafkaConsumer<String, String> consumer, UUID eventId, UUID orderId) {
-        Instant deadline = Instant.now().plusSeconds(10);
-        while (Instant.now().isBefore(deadline)) {
-            for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(250))) {
-                if (record.key().equals(orderId.toString()) && record.value().contains(eventId.toString())) {
-                    return true;
-                }
+        for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(250))) {
+            if (record.key().equals(orderId.toString()) && record.value().contains(eventId.toString())) {
+                return true;
             }
         }
         return false;

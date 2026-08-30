@@ -15,15 +15,20 @@ import com.github.darnoker.productservice.product.ProductType;
 import com.github.darnoker.productservice.product.model.BookDetails;
 import com.github.darnoker.productservice.product.model.Product;
 import com.github.darnoker.productservice.product.persistence.ProductRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,6 +36,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.awaitility.Awaitility.await;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -51,6 +57,14 @@ class InventoryServiceIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private JsonMapper jsonMapper;
+
+    @BeforeEach
+    void cleanDatabase() {
+        jdbcTemplate.execute("TRUNCATE TABLE inbox_messages, outbox_events, stock_reservations, product_price_history, inventory, products");
+    }
 
     @Test
     void reservesStockAndReturnsExistingReservationForRepeatedRequest() {
@@ -97,6 +111,7 @@ class InventoryServiceIntegrationTest {
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void publishesReservationFailedWhenInventoryIsMissingWithoutCreatingReservations() {
         UUID missingProductId = UUID.randomUUID();
         UUID orderId = UUID.randomUUID();
@@ -104,12 +119,15 @@ class InventoryServiceIntegrationTest {
         List<ReservationResult> result = inventoryService.reserveStock(new ReserveStockCommand(
                 orderId, UUID.randomUUID(), List.of(new ReservedItem(missingProductId, 3))));
 
-        assertEquals(List.of(), result);
-        assertEquals(List.of(), stockReservationRepository.findAllByOrderId(orderId));
-        assertReservationFailure(orderId, "INVENTORY_NOT_FOUND", missingProductId, 3);
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            assertEquals(List.of(), result);
+            assertEquals(List.of(), stockReservationRepository.findAllByOrderId(orderId));
+            assertReservationFailure(orderId, "INVENTORY_NOT_FOUND", missingProductId, 3);
+        });
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void publishesReservationFailedWhenStockIsInsufficientWithoutChangingInventory() {
         UUID productId = createProductWithInventory(2, 0);
         UUID orderId = UUID.randomUUID();
@@ -194,12 +212,15 @@ class InventoryServiceIntegrationTest {
                 SELECT event_type, payload::text AS payload
                 FROM outbox_events
                 WHERE aggregate_id = ?
-                """, orderId);
+        """, orderId);
 
         assertEquals("stock.reservation.failed", event.get("event_type"));
-        assertEquals("{\"orderId\":\"%s\",\"reason\":\"%s\",\"items\":[{\"productId\":\"%s\",\"quantity\":%s}]}"
-                        .formatted(orderId, reason, productId, quantity),
-                event.get("payload"));
+        var payload = jsonMapper.readTree((String) event.get("payload"));
+        var item = payload.required("items").get(0);
+        assertEquals(orderId.toString(), payload.required("orderId").asString());
+        assertEquals(reason, payload.required("reason").asString());
+        assertEquals(productId.toString(), item.required("productId").asString());
+        assertEquals(quantity, item.required("quantity").asInt());
     }
 
     private void assertSingleReservationSuccess(UUID orderId, List<ReservationResult> reservations) {
@@ -211,9 +232,12 @@ class InventoryServiceIntegrationTest {
 
         assertEquals(1, events.size());
         assertEquals("stock.reserved", events.getFirst().get("event_type"));
-        assertEquals("{\"orderId\":\"%s\",\"reservations\":[{\"productId\":\"%s\",\"quantity\":%s,\"reservationId\":\"%s\",\"expiresAt\":\"%s\"}]}"
-                        .formatted(orderId, reservations.getFirst().productId(), reservations.getFirst().quantity(),
-                                reservations.getFirst().reservationId(), reservations.getFirst().expiresAt()),
-                events.getFirst().get("payload"));
+        var payload = jsonMapper.readTree((String) events.getFirst().get("payload"));
+        var reservation = payload.required("reservations").get(0);
+        assertEquals(orderId.toString(), payload.required("orderId").asString());
+        assertEquals(reservations.getFirst().productId().toString(), reservation.required("productId").asString());
+        assertEquals(reservations.getFirst().quantity(), reservation.required("quantity").asInt());
+        assertEquals(reservations.getFirst().reservationId().toString(), reservation.required("reservationId").asString());
+        assertEquals(reservations.getFirst().expiresAt(), LocalDateTime.parse(reservation.required("expiresAt").asString()));
     }
 }

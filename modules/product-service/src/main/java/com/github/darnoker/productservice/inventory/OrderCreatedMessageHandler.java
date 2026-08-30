@@ -6,6 +6,7 @@ import com.github.darnoker.productservice.inventory.model.ReserveStockCommand;
 import com.github.darnoker.productservice.message.inbox.InboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,16 +29,14 @@ public class OrderCreatedMessageHandler implements InboundMessageHandler {
     }
 
     @Override
+    @Transactional
     public void consume(InboundMessage message) {
         log.info("Consuming message {} of type {}", message.id(), message.eventType());
-        if(!inboxService.recordIfAbsent(CONSUMER_NAME, message.id())) {
+        if (!inboxService.recordIfAbsent(CONSUMER_NAME, message.id())) {
             return;
         }
         ReserveStockCommand command = mapper.toReserveStockCommand(message);
         inventoryService.reserveStock(command);
         log.info("Reserved stocks completed");
-
-
-
     }
 }

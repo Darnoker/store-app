@@ -18,7 +18,7 @@ ALTER TABLE outbox_events
         CHECK (status IN ('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED')),
     DROP COLUMN published;
 
-DROP INDEX idx_outbox_events_unpublished;
+DROP INDEX IF EXISTS idx_outbox_events_unpublished;
 
 CREATE INDEX idx_outbox_events_ready
     ON outbox_events(next_attempt_at, created_at, id)

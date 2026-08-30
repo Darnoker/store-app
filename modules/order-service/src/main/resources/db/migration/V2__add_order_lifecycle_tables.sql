@@ -45,9 +45,23 @@ CREATE TABLE outbox_events (
     id UUID PRIMARY KEY,
     aggregate_id UUID NOT NULL,
     event_type VARCHAR(128) NOT NULL,
+    destination VARCHAR(128) NOT NULL,
     payload JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    published BOOLEAN NOT NULL DEFAULT FALSE
+    status VARCHAR(16) NOT NULL DEFAULT 'PENDING'
+        CHECK (status IN ('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED')),
+    retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
+    next_attempt_at TIMESTAMP WITH TIME ZONE,
+    locked_by UUID,
+    locked_until TIMESTAMP WITH TIME ZONE,
+    last_error VARCHAR(2000)
 );
 
-CREATE INDEX idx_outbox_events_unpublished ON outbox_events(created_at) WHERE published = FALSE;
+CREATE INDEX idx_outbox_events_ready
+    ON outbox_events(next_attempt_at, created_at, id)
+    WHERE status = 'PENDING';
+
+CREATE INDEX idx_outbox_events_expired_locks
+    ON outbox_events(locked_until, created_at, id)
+    WHERE status = 'PROCESSING';
+

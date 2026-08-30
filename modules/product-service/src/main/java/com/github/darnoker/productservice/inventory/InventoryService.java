@@ -14,6 +14,7 @@ import com.github.darnoker.productservice.inventory.persistence.StockReservation
 import com.github.darnoker.productservice.outbox.persistence.OutboxEventPublisher;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -24,9 +25,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.Collection;
 import java.util.stream.Collectors;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class InventoryService {
 
     private final InventoryRepository inventoryRepository;
@@ -37,11 +40,15 @@ public class InventoryService {
 
     private final Clock clock;
 
+    private final ObjectMapper objectMapper;
+
     @Transactional
     public List<ReservationResult> reserveStock(ReserveStockCommand command) {
+        log.info("Reserving stock for order {} with request {}", command.orderId(), command.requestId());
         List<StockReservation> existingReservations = stockReservationRepository
                 .findAllByOrderIdAndRequestId(command.orderId(), command.requestId());
         if (!existingReservations.isEmpty()) {
+            log.info("Returning {} existing stock reservation(s) for order {}", existingReservations.size(), command.orderId());
             return existingReservations.stream()
                     .map(this::toReservationResult)
                     .toList();
@@ -52,14 +59,20 @@ public class InventoryService {
 
         List<Inventory> inventories = inventoryRepository.findAllByProductIdInForUpdate(quantityByProductId.keySet());
         if (inventories.size() != quantityByProductId.size()) {
-            throw new IllegalArgumentException("Inventory does not exist for every requested product");
+            log.warn("Cannot reserve stock for order {}: inventory is missing", command.orderId());
+            publishReservationFailure(command, "INVENTORY_NOT_FOUND", missingItems(command, inventories), Instant.now(clock));
+            return List.of();
         }
         Instant now = Instant.now(clock);
-        for (Inventory inventory : inventories) {
-            Quantity requestedQuantity = quantityByProductId.get(inventory.productId());
-            if (inventory.quantity().subtract(inventory.reservedQuantity()).isLessThan(requestedQuantity)) {
-                throw new IllegalStateException("Insufficient stock for product " + inventory.productId());
-            }
+        List<ReservedItem> insufficientItems = inventories.stream()
+                .filter(inventory -> inventory.quantity().subtract(inventory.reservedQuantity())
+                        .isLessThan(quantityByProductId.get(inventory.productId())))
+                .map(inventory -> new ReservedItem(inventory.productId(), quantityByProductId.get(inventory.productId())))
+                .toList();
+        if (!insufficientItems.isEmpty()) {
+            log.warn("Cannot reserve stock for order {} due to insufficient stock", command.orderId());
+            publishReservationFailure(command, "INSUFFICIENT_STOCK", insufficientItems, now);
+            return List.of();
         }
         inventories = inventories.stream()
                 .map(inventory -> inventory.update(inventory.quantity(),
@@ -80,11 +93,13 @@ public class InventoryService {
                         now))
                 .toList();
         stockReservationRepository.saveAll(reservations);
-        reservations.forEach(reservation -> publish(reservation.orderId(), InventoryEventType.STOCK_RESERVED, now));
+        log.info("Reserved stock for order {}", command.orderId());
 
-        return reservations.stream()
+        List<ReservationResult> results = reservations.stream()
                 .map(this::toReservationResult)
                 .toList();
+        publishReservationSuccess(command.orderId(), results, now);
+        return results;
     }
 
     @Transactional
@@ -108,7 +123,9 @@ public class InventoryService {
 
     @Transactional
     public void adjustStock(AdjustStockCommand command) {
+        log.info("Adjusting stock for product {} by {}", command.productId(), command.quantityChange());
         if (command.quantityChange() == 0) {
+            log.warn("Rejected zero stock adjustment for product {}", command.productId());
             throw new InvalidStockAdjustmentException("Stock adjustment must not be zero");
         }
         Instant now = Instant.now(clock);
@@ -180,7 +197,31 @@ public class InventoryService {
     }
 
     private void publish(UUID aggregateId, InventoryEventType eventType, Instant now) {
-        outboxEventPublisher.publish(aggregateId, eventType.value(), "{}", now);
+        outboxEventPublisher.publish(aggregateId, eventType.getValue(), "{}", now);
+    }
+
+    private List<ReservedItem> missingItems(ReserveStockCommand command, List<Inventory> inventories) {
+        var foundProductIds = inventories.stream().map(Inventory::productId).collect(Collectors.toSet());
+        return command.reservedItems().stream()
+                .filter(item -> !foundProductIds.contains(item.productId()))
+                .toList();
+    }
+
+    private void publishReservationFailure(ReserveStockCommand command,
+                                           String reason,
+                                           List<ReservedItem> failedItems,
+                                           Instant createdAt) {
+        outboxEventPublisher.publish(command.orderId(), InventoryEventType.STOCK_RESERVATION_FAILED.getValue(),
+                objectMapper.writeValueAsString(new StockReservationFailedEvent(command.orderId(), reason,
+                        failedItems.stream()
+                                .map(item -> new FailedReservationItem(item.productId(), item.quantity().value()))
+                                .toList())),
+                createdAt);
+    }
+
+    private void publishReservationSuccess(UUID orderId, List<ReservationResult> reservations, Instant createdAt) {
+        outboxEventPublisher.publish(orderId, InventoryEventType.STOCK_RESERVED.getValue(),
+                objectMapper.writeValueAsString(new StockReservedEvent(orderId, reservations)), createdAt);
     }
 
     private ReservationResult toReservationResult(StockReservation reservation) {

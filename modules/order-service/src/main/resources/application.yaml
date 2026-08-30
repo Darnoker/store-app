@@ -11,6 +11,13 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
 
 server:
   port: ${SERVER_PORT:8083}
@@ -22,3 +29,12 @@ user-service:
   jwk-set-uri: ${USER_SERVICE_JWK_SET_URI:http://localhost:8082/oauth2/jwks}
   issuer: ${USER_SERVICE_ISSUER:http://localhost:8082}
   audience: ${USER_SERVICE_AUDIENCE:storeapp-api}
+
+outbox:
+  relay:
+    enabled: ${OUTBOX_RELAY_ENABLED:true}
+    polling-interval-ms: ${OUTBOX_RELAY_POLLING_INTERVAL_MS:10000}
+    batch-size: ${OUTBOX_RELAY_BATCH_SIZE:100}
+    publish-timeout: ${OUTBOX_RELAY_PUBLISH_TIMEOUT:15s}
+    lease-duration: ${OUTBOX_RELAY_LEASE_DURATION:45s}
+    lease-renewal-interval: ${OUTBOX_RELAY_LEASE_RENEWAL_INTERVAL:10s}

@@ -9,3 +9,7 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+
+outbox:
+  relay:
+    enabled: false

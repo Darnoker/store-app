@@ -15,20 +15,28 @@ import com.github.darnoker.productservice.product.ProductType;
 import com.github.darnoker.productservice.product.model.BookDetails;
 import com.github.darnoker.productservice.product.model.Product;
 import com.github.darnoker.productservice.product.persistence.ProductRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.awaitility.Awaitility.await;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -46,6 +54,17 @@ class InventoryServiceIntegrationTest {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private JsonMapper jsonMapper;
+
+    @BeforeEach
+    void cleanDatabase() {
+        jdbcTemplate.execute("TRUNCATE TABLE inbox_messages, outbox_events, stock_reservations, product_price_history, inventory, products");
+    }
 
     @Test
     void reservesStockAndReturnsExistingReservationForRepeatedRequest() {
@@ -88,6 +107,40 @@ class InventoryServiceIntegrationTest {
         assertEquals(3, reservation.quantity().value());
         assertEquals(StockReservationStatus.RESERVED, reservation.status());
         assertEquals(firstResult.getFirst().reservationId(), reservation.id());
+        assertSingleReservationSuccess(orderId, firstResult);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void publishesReservationFailedWhenInventoryIsMissingWithoutCreatingReservations() {
+        UUID missingProductId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+
+        List<ReservationResult> result = inventoryService.reserveStock(new ReserveStockCommand(
+                orderId, UUID.randomUUID(), List.of(new ReservedItem(missingProductId, 3))));
+
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            assertEquals(List.of(), result);
+            assertEquals(List.of(), stockReservationRepository.findAllByOrderId(orderId));
+            assertReservationFailure(orderId, "INVENTORY_NOT_FOUND", missingProductId, 3);
+        });
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void publishesReservationFailedWhenStockIsInsufficientWithoutChangingInventory() {
+        UUID productId = createProductWithInventory(2, 0);
+        UUID orderId = UUID.randomUUID();
+
+        List<ReservationResult> result = inventoryService.reserveStock(new ReserveStockCommand(
+                orderId, UUID.randomUUID(), List.of(new ReservedItem(productId, 3))));
+
+        assertEquals(List.of(), result);
+        Inventory inventory = inventoryRepository.findById(productId).orElseThrow();
+        assertEquals(2, inventory.quantity().value());
+        assertEquals(0, inventory.reservedQuantity().value());
+        assertEquals(List.of(), stockReservationRepository.findAllByOrderId(orderId));
+        assertReservationFailure(orderId, "INSUFFICIENT_STOCK", productId, 3);
     }
 
     @Test
@@ -152,5 +205,39 @@ class InventoryServiceIntegrationTest {
         StockReservation reservation = new StockReservation(UUID.randomUUID(), productId, orderId, UUID.randomUUID(),
                 new Quantity(quantity), StockReservationStatus.RESERVED, expiresAt, Instant.now());
         return stockReservationRepository.save(reservation);
+    }
+
+    private void assertReservationFailure(UUID orderId, String reason, UUID productId, int quantity) {
+        Map<String, Object> event = jdbcTemplate.queryForMap("""
+                SELECT event_type, payload::text AS payload
+                FROM outbox_events
+                WHERE aggregate_id = ?
+        """, orderId);
+
+        assertEquals("stock.reservation.failed", event.get("event_type"));
+        var payload = jsonMapper.readTree((String) event.get("payload"));
+        var item = payload.required("items").get(0);
+        assertEquals(orderId.toString(), payload.required("orderId").asString());
+        assertEquals(reason, payload.required("reason").asString());
+        assertEquals(productId.toString(), item.required("productId").asString());
+        assertEquals(quantity, item.required("quantity").asInt());
+    }
+
+    private void assertSingleReservationSuccess(UUID orderId, List<ReservationResult> reservations) {
+        List<Map<String, Object>> events = jdbcTemplate.queryForList("""
+                SELECT event_type, payload::text AS payload
+                FROM outbox_events
+                WHERE aggregate_id = ?
+                """, orderId);
+
+        assertEquals(1, events.size());
+        assertEquals("stock.reserved", events.getFirst().get("event_type"));
+        var payload = jsonMapper.readTree((String) events.getFirst().get("payload"));
+        var reservation = payload.required("reservations").get(0);
+        assertEquals(orderId.toString(), payload.required("orderId").asString());
+        assertEquals(reservations.getFirst().productId().toString(), reservation.required("productId").asString());
+        assertEquals(reservations.getFirst().quantity(), reservation.required("quantity").asInt());
+        assertEquals(reservations.getFirst().reservationId().toString(), reservation.required("reservationId").asString());
+        assertEquals(reservations.getFirst().expiresAt(), LocalDateTime.parse(reservation.required("expiresAt").asString()));
     }
 }

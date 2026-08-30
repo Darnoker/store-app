@@ -12,4 +12,11 @@
     <artifactId>common-library</artifactId>
     <name>common-library</name>
     <description>Provider-neutral contracts shared by Storeapp services.</description>
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

@@ -18,12 +18,14 @@ import com.github.darnoker.productservice.product.persistence.ProductRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,6 +48,9 @@ class InventoryServiceIntegrationTest {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void reservesStockAndReturnsExistingReservationForRepeatedRequest() {
@@ -88,6 +93,35 @@ class InventoryServiceIntegrationTest {
         assertEquals(3, reservation.quantity().value());
         assertEquals(StockReservationStatus.RESERVED, reservation.status());
         assertEquals(firstResult.getFirst().reservationId(), reservation.id());
+    }
+
+    @Test
+    void publishesReservationFailedWhenInventoryIsMissingWithoutCreatingReservations() {
+        UUID missingProductId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+
+        List<ReservationResult> result = inventoryService.reserveStock(new ReserveStockCommand(
+                orderId, UUID.randomUUID(), List.of(new ReservedItem(missingProductId, 3))));
+
+        assertEquals(List.of(), result);
+        assertEquals(List.of(), stockReservationRepository.findAllByOrderId(orderId));
+        assertReservationFailure(orderId, "INVENTORY_NOT_FOUND", missingProductId, 3);
+    }
+
+    @Test
+    void publishesReservationFailedWhenStockIsInsufficientWithoutChangingInventory() {
+        UUID productId = createProductWithInventory(2, 0);
+        UUID orderId = UUID.randomUUID();
+
+        List<ReservationResult> result = inventoryService.reserveStock(new ReserveStockCommand(
+                orderId, UUID.randomUUID(), List.of(new ReservedItem(productId, 3))));
+
+        assertEquals(List.of(), result);
+        Inventory inventory = inventoryRepository.findById(productId).orElseThrow();
+        assertEquals(2, inventory.quantity().value());
+        assertEquals(0, inventory.reservedQuantity().value());
+        assertEquals(List.of(), stockReservationRepository.findAllByOrderId(orderId));
+        assertReservationFailure(orderId, "INSUFFICIENT_STOCK", productId, 3);
     }
 
     @Test
@@ -152,5 +186,18 @@ class InventoryServiceIntegrationTest {
         StockReservation reservation = new StockReservation(UUID.randomUUID(), productId, orderId, UUID.randomUUID(),
                 new Quantity(quantity), StockReservationStatus.RESERVED, expiresAt, Instant.now());
         return stockReservationRepository.save(reservation);
+    }
+
+    private void assertReservationFailure(UUID orderId, String reason, UUID productId, int quantity) {
+        Map<String, Object> event = jdbcTemplate.queryForMap("""
+                SELECT event_type, payload::text AS payload
+                FROM outbox_events
+                WHERE aggregate_id = ?
+                """, orderId);
+
+        assertEquals("stock.reservation.failed", event.get("event_type"));
+        assertEquals("{\"orderId\":\"%s\",\"reason\":\"%s\",\"items\":[{\"productId\":\"%s\",\"quantity\":%s}]}"
+                        .formatted(orderId, reason, productId, quantity),
+                event.get("payload"));
     }
 }

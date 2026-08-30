@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.Collection;
 import java.util.stream.Collectors;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +39,8 @@ public class InventoryService {
     private final OutboxEventPublisher outboxEventPublisher;
 
     private final Clock clock;
+
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public List<ReservationResult> reserveStock(ReserveStockCommand command) {
@@ -57,15 +60,19 @@ public class InventoryService {
         List<Inventory> inventories = inventoryRepository.findAllByProductIdInForUpdate(quantityByProductId.keySet());
         if (inventories.size() != quantityByProductId.size()) {
             log.warn("Cannot reserve stock for order {}: inventory is missing", command.orderId());
-            throw new IllegalArgumentException("Inventory does not exist for every requested product");
+            publishReservationFailure(command, "INVENTORY_NOT_FOUND", missingItems(command, inventories), Instant.now(clock));
+            return List.of();
         }
         Instant now = Instant.now(clock);
-        for (Inventory inventory : inventories) {
-            Quantity requestedQuantity = quantityByProductId.get(inventory.productId());
-            if (inventory.quantity().subtract(inventory.reservedQuantity()).isLessThan(requestedQuantity)) {
-                log.warn("Cannot reserve {} units of product {} for order {} due to insufficient stock", requestedQuantity.value(), inventory.productId(), command.orderId());
-                throw new IllegalStateException("Insufficient stock for product " + inventory.productId());
-            }
+        List<ReservedItem> insufficientItems = inventories.stream()
+                .filter(inventory -> inventory.quantity().subtract(inventory.reservedQuantity())
+                        .isLessThan(quantityByProductId.get(inventory.productId())))
+                .map(inventory -> new ReservedItem(inventory.productId(), quantityByProductId.get(inventory.productId())))
+                .toList();
+        if (!insufficientItems.isEmpty()) {
+            log.warn("Cannot reserve stock for order {} due to insufficient stock", command.orderId());
+            publishReservationFailure(command, "INSUFFICIENT_STOCK", insufficientItems, now);
+            return List.of();
         }
         inventories = inventories.stream()
                 .map(inventory -> inventory.update(inventory.quantity(),
@@ -190,6 +197,25 @@ public class InventoryService {
 
     private void publish(UUID aggregateId, InventoryEventType eventType, Instant now) {
         outboxEventPublisher.publish(aggregateId, eventType.value(), "{}", now);
+    }
+
+    private List<ReservedItem> missingItems(ReserveStockCommand command, List<Inventory> inventories) {
+        var foundProductIds = inventories.stream().map(Inventory::productId).collect(Collectors.toSet());
+        return command.reservedItems().stream()
+                .filter(item -> !foundProductIds.contains(item.productId()))
+                .toList();
+    }
+
+    private void publishReservationFailure(ReserveStockCommand command,
+                                           String reason,
+                                           List<ReservedItem> failedItems,
+                                           Instant createdAt) {
+        outboxEventPublisher.publish(command.orderId(), InventoryEventType.STOCK_RESERVATION_FAILED.value(),
+                objectMapper.writeValueAsString(new StockReservationFailedEvent(command.orderId(), reason,
+                        failedItems.stream()
+                                .map(item -> new FailedReservationItem(item.productId(), item.quantity().value()))
+                                .toList())),
+                createdAt);
     }
 
     private ReservationResult toReservationResult(StockReservation reservation) {
